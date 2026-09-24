@@ -1,0 +1,6 @@
+{
+  "name": "Nifty 50 Rebalance Radar",
+  "description": "Daily intelligence on Indian stocks listing into Nifty 50 with alpha and growth probability metrics, deletions across 15-day, 1-month, and 2-month horizons, and real-time NSE rebalance alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
