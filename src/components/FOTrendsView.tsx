@@ -25,6 +25,9 @@ interface FOTrendsViewProps {
   onRefreshFOTicks: () => void;
   isRefreshing: boolean;
   lastUpdated: string;
+  autoRefreshSecondsLeft: number;
+  autoRefreshEnabled: boolean;
+  onToggleAutoRefresh: () => void;
 }
 
 export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
@@ -33,6 +36,9 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
   onRefreshFOTicks,
   isRefreshing,
   lastUpdated,
+  autoRefreshSecondsLeft,
+  autoRefreshEnabled,
+  onToggleAutoRefresh,
 }) => {
   const [filterTiming, setFilterTiming] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -116,12 +122,26 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
           </p>
         </div>
 
-        {/* Action button & timestamp */}
-        <div className="flex items-center gap-3">
+        {/* Action button & timestamp with 30s auto-refresh countdown */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={onToggleAutoRefresh}
+            title={autoRefreshEnabled ? "Click to pause 30s auto-refresh" : "Click to resume 30s auto-refresh"}
+            className={`px-2.5 py-1.5 rounded text-xs font-mono border flex items-center gap-1.5 transition-colors cursor-pointer ${
+              autoRefreshEnabled
+                ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                : 'bg-slate-900 border-slate-700 text-slate-400'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${autoRefreshEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+            <span>Auto: {autoRefreshEnabled ? `${autoRefreshSecondsLeft}s` : 'Paused'}</span>
+          </button>
+
           <div className="text-right hidden sm:block">
             <div className="text-[11px] text-slate-400">Live OI Cycle</div>
             <div className="text-xs font-mono text-amber-300">{lastUpdated}</div>
           </div>
+
           <button
             onClick={onRefreshFOTicks}
             disabled={isRefreshing}

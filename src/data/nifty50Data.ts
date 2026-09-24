@@ -41,6 +41,15 @@ export const UPCOMING_INCLUSIONS: UpcomingInclusionStock[] = [
     },
     alphaRationale: 'Generated +38.4% annualized excess return over Nifty 50 TRI, driven by quick-commerce profitability turnaround and explosive gross order value expansion.',
     growthDriver: 'Blinkit EBITDA inflection, positive free cash flow compounding, market leader in fast-growing Indian consumer tech delivery segment.',
+    tradeTiming: {
+      action: 'BUY_NOW',
+      actionHeadline: 'RIGHT TIME TO BUY NOW - Pre-Inclusion Breakout Active',
+      holdTillPrice: 320.0,
+      currentEntryRange: '₹282 - ₹286',
+      stopLossPrice: 265.0,
+      timingAdvice: 'Optimal buying window currently open. Institutional front-running and mutual fund accumulation ahead of the semi-annual review provide strong downside cushion. Hold firmly till target ₹320.00 where ₹3,850 Cr passive ETF buying will settle.',
+      catalystWindow: 'Hold till October 2026 Nifty 50 rebalance settlement'
+    },
     metrics: {
       currentPrice: 284.60,
       dailyChangePercent: 2.15,
@@ -79,6 +88,15 @@ export const UPCOMING_INCLUSIONS: UpcomingInclusionStock[] = [
     },
     alphaRationale: 'Dominant +44.8% alpha over benchmark. Massive institutional buying support and consistent store addition velocity across Zudio and Westside.',
     growthDriver: 'Unprecedented unit economics in value fashion, Star Bazaar grocery scale, operating leverage driving 45%+ net income CAGR.',
+    tradeTiming: {
+      action: 'HOLD_TILL_PRICE',
+      actionHeadline: 'HOLD TILL TARGET ₹8,000 - Do Not Sell Before Inclusion',
+      holdTillPrice: 8000.0,
+      currentEntryRange: '₹7,360 - ₹7,420 (Accumulate on dips)',
+      stopLossPrice: 7100.0,
+      timingAdvice: 'If currently holding, HOLD FIRM till ₹8,000. Do not book profits prematurely; ₹3,510 Cr passive ETF inflow is locked in once index committee confirms constituent replacement. For fresh buys, accumulate on small pullbacks.',
+      catalystWindow: 'Hold till Semi-Annual Review effective implementation'
+    },
     metrics: {
       currentPrice: 7420.00,
       dailyChangePercent: 1.84,
@@ -117,6 +135,15 @@ export const UPCOMING_INCLUSIONS: UpcomingInclusionStock[] = [
     },
     alphaRationale: 'Delivered +22.1% excess return post-BlackRock JV operationalization and consumer lending rollout. Highly liquid F&O open interest.',
     growthDriver: 'Direct access to Jio and Reliance Retail customer base, capital adequacy ratio > 80%, massive balance sheet readiness for MSME and digital wealth loans.',
+    tradeTiming: {
+      action: 'BUY_NOW',
+      actionHeadline: 'RIGHT TIME TO BUY NOW - Coiling at ₹348 Resistance Barrier',
+      holdTillPrice: 390.0,
+      currentEntryRange: '₹345 - ₹349',
+      stopLossPrice: 330.0,
+      timingAdvice: 'Right time to buy. Put additions at 345 strike are creating solid price floor. Projected ₹2,390 Cr inflow will push price toward ₹390 target. Hold positions until formal index inclusion announcement.',
+      catalystWindow: 'Hold till formal inclusion confirmation circular'
+    },
     metrics: {
       currentPrice: 348.50,
       dailyChangePercent: 0.72,
@@ -155,6 +182,15 @@ export const UPCOMING_INCLUSIONS: UpcomingInclusionStock[] = [
     },
     alphaRationale: '+28.6% alpha generated with structural duopoly in domestic air travel, expanding international routes and robust passenger yields.',
     growthDriver: '64% domestic market share, 500+ Airbus order book delivery rollout, expansion into long-haul international routes with A321XLR aircraft.',
+    tradeTiming: {
+      action: 'HOLD_TILL_PRICE',
+      actionHeadline: 'HOLD TILL TARGET ₹5,350 - Aviation Duopoly Compounding',
+      holdTillPrice: 5350.0,
+      currentEntryRange: '₹4,820 - ₹4,890',
+      stopLossPrice: 4600.0,
+      timingAdvice: 'Hold existing positions till target ₹5,350. Domestic air travel market share dominance provides steady structural earnings growth. Passive funds will absorb ~4 days of ADV upon inclusion.',
+      catalystWindow: 'Hold till Upcoming Review Cycle settlement'
+    },
     metrics: {
       currentPrice: 4890.25,
       dailyChangePercent: 1.10,
@@ -193,6 +229,15 @@ export const UPCOMING_INCLUSIONS: UpcomingInclusionStock[] = [
     },
     alphaRationale: '+31.2% alpha driven by multi-year capex upcycle in Indian data centers, manufacturing infrastructure, and CPCB IV+ power generators.',
     growthDriver: 'Unprecedented demand from AI data center power backup, robust export orders to global markets, expanding operating margins.',
+    tradeTiming: {
+      action: 'BUY_ON_DIP',
+      actionHeadline: 'BUY ON DIP - Accumulate Near ₹3,780-₹3,820 Zone',
+      holdTillPrice: 4250.0,
+      currentEntryRange: '₹3,780 - ₹3,820',
+      stopLossPrice: 3620.0,
+      timingAdvice: 'Do not chase on gap-ups. Ideal buying window triggers on shallow retracements between ₹3,780 and ₹3,820. Hold till target ₹4,250 to ride data-center power generation infrastructure supercycle.',
+      catalystWindow: 'Hold till Next 1 Month review window'
+    },
     metrics: {
       currentPrice: 3840.10,
       dailyChangePercent: 0.95,

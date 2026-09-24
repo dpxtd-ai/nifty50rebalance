@@ -22,7 +22,7 @@ import {
   DAILY_SNAPSHOT,
 } from './data/nifty50Data.ts';
 import { FO_NIFTY50_TRENDS } from './data/foData.ts';
-import { INITIAL_PORTFOLIO_SAMPLE, KNOWN_STOCKS_CATALOG, generateAdvisorRecommendation } from './data/portfolioPresets.ts';
+import { KNOWN_STOCKS_CATALOG, generateAdvisorRecommendation } from './data/portfolioPresets.ts';
 import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock, UserPortfolioStock } from './types/index.ts';
 import { playAlertChime } from './utils/audio.ts';
 import { Search, AlertCircle, Info, BellRing } from 'lucide-react';
@@ -33,33 +33,71 @@ export default function App() {
   const [foStocks, setFoStocks] = useState<FOTrendStock[]>(FO_NIFTY50_TRENDS);
   const [isFoRefreshing, setIsFoRefreshing] = useState<boolean>(false);
   const [foLastUpdated, setFoLastUpdated] = useState<string>('Live Session (09:18 IST)');
+  const [autoRefreshSecondsLeft, setAutoRefreshSecondsLeft] = useState<number>(30);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(true);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [selectedStock, setSelectedStock] = useState<UpcomingInclusionStock | ExclusionDelistingStock | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<string>('24 Sep 2026, 09:18 IST');
   const [bannerAlert, setBannerAlert] = useState<string | null>(null);
 
-  // Portfolio local storage initialization
+  // Portfolio local storage initialization - 100% clean of sample data, preserved permanently
   const [portfolioStocks, setPortfolioStocks] = useState<UserPortfolioStock[]>(() => {
     try {
-      const saved = localStorage.getItem('nifty50_radar_portfolio');
+      const saved = localStorage.getItem('nifty50_radar_portfolio_user');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+
+      // Check legacy storage and purge any old mock sample items
+      const legacySaved = localStorage.getItem('nifty50_radar_portfolio');
+      if (legacySaved) {
+        const parsedLegacy = JSON.parse(legacySaved);
+        if (Array.isArray(parsedLegacy)) {
+          const userOnly = parsedLegacy.filter(
+            (s: any) => s.id !== 'port-1' && s.id !== 'port-2' && s.id !== 'port-3'
+          );
+          if (userOnly.length > 0) {
+            localStorage.setItem('nifty50_radar_portfolio_user', JSON.stringify(userOnly));
+            return userOnly;
+          }
+        }
       }
     } catch (e) {
       console.warn('Could not read portfolio from localStorage:', e);
     }
-    return INITIAL_PORTFOLIO_SAMPLE;
+    return []; // Absolutely no sample data!
   });
 
-  // Sync portfolio changes to browser localStorage
+  // Sync portfolio changes to browser localStorage permanently across redeployments
   useEffect(() => {
     try {
-      localStorage.setItem('nifty50_radar_portfolio', JSON.stringify(portfolioStocks));
+      localStorage.setItem('nifty50_radar_portfolio_user', JSON.stringify(portfolioStocks));
     } catch (e) {
       console.warn('Could not save portfolio to localStorage:', e);
     }
   }, [portfolioStocks]);
+
+  // Automatic 30-second refresh timer for F&O timing ticks
+  useEffect(() => {
+    if (activeTab !== 'fo_trends' || !autoRefreshEnabled) {
+      setAutoRefreshSecondsLeft(30);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setAutoRefreshSecondsLeft((prev) => {
+        if (prev <= 1) {
+          handleRefreshFOTicks();
+          return 30;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeTab, autoRefreshEnabled]);
 
   const handleAddPortfolioStock = (stockData: Omit<UserPortfolioStock, 'id'>) => {
     const newStock: UserPortfolioStock = {
@@ -74,6 +112,17 @@ export default function App() {
 
   const handleRemovePortfolioStock = (id: string) => {
     setPortfolioStocks((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleRestorePortfolio = (stocks: UserPortfolioStock[]) => {
+    setPortfolioStocks(stocks);
+    if (soundEnabled) {
+      playAlertChime();
+    }
+  };
+
+  const handleToggleAutoRefresh = () => {
+    setAutoRefreshEnabled((prev) => !prev);
   };
 
   const handleUpdatePortfolioStock = (id: string, shares: number, avgBuyPrice: number) => {
@@ -95,10 +144,6 @@ export default function App() {
         return item;
       })
     );
-  };
-
-  const handleLoadSamplePortfolio = () => {
-    setPortfolioStocks(INITIAL_PORTFOLIO_SAMPLE);
   };
 
   const handleClearPortfolio = () => {
@@ -335,6 +380,9 @@ export default function App() {
             onRefreshFOTicks={handleRefreshFOTicks}
             isRefreshing={isFoRefreshing}
             lastUpdated={foLastUpdated}
+            autoRefreshSecondsLeft={autoRefreshSecondsLeft}
+            autoRefreshEnabled={autoRefreshEnabled}
+            onToggleAutoRefresh={handleToggleAutoRefresh}
           />
         )}
 
@@ -344,7 +392,7 @@ export default function App() {
             onAddStock={handleAddPortfolioStock}
             onRemoveStock={handleRemovePortfolioStock}
             onUpdateStock={handleUpdatePortfolioStock}
-            onLoadSamplePortfolio={handleLoadSamplePortfolio}
+            onRestorePortfolio={handleRestorePortfolio}
             onClearPortfolio={handleClearPortfolio}
           />
         )}

@@ -17,6 +17,18 @@ export interface StockQuantMetrics {
   tradingFrequencyPercent: number; // e.g. 100%
 }
 
+export type InclusionTimingAction = 'BUY_NOW' | 'BUY_ON_DIP' | 'HOLD_TILL_PRICE' | 'BOOK_PARTIAL';
+
+export interface InclusionTradeTiming {
+  action: InclusionTimingAction;
+  actionHeadline: string; // e.g. "RIGHT TIME TO BUY NOW" or "HOLD TILL TARGET PRICE"
+  holdTillPrice: number; // Exact price level to hold until
+  currentEntryRange: string;
+  stopLossPrice: number;
+  timingAdvice: string; // Actionable advice on buying right now vs holding
+  catalystWindow: string; // e.g. "Hold till Oct 2026 Nifty 50 rebalance settlement"
+}
+
 export interface UpcomingInclusionStock {
   id: string;
   symbol: string;
@@ -37,6 +49,7 @@ export interface UpcomingInclusionStock {
   };
   alphaRationale: string;
   growthDriver: string;
+  tradeTiming: InclusionTradeTiming;
   metrics: StockQuantMetrics;
   dayOverDayAlphaDelta: number;
   dayOverDayRankDelta: number;

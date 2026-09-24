@@ -183,60 +183,58 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     riskRating: 'Moderate',
     baseRationale: 'High alpha contender with 64% domestic market share. On watchlist for upcoming entry with ₹1,920 Cr projected passive inflow.',
     defaultAction: 'ACCUMULATE'
-  }
-];
-
-export const INITIAL_PORTFOLIO_SAMPLE: UserPortfolioStock[] = [
-  {
-    id: 'port-1',
-    symbol: 'ZOMATO',
-    name: 'Zomato Ltd',
-    shares: 400,
-    avgBuyPrice: 245.00,
-    buyDate: '2026-06-15',
-    notes: 'Bought for Nifty 50 inclusion run-up and Blinkit growth',
-    currentPrice: 284.60,
-    dayChangePercent: 2.15,
-    rebalanceStatus: 'Upcoming Inclusion (+Inflows)',
-    suggestion: 'HOLD_FIRM',
-    suggestionRationale: 'HOLD FIRM. Stock is in strong profit (+16.2%) and ranks #1 for Nifty 50 inclusion. An estimated ₹3,850 Cr passive ETF buying will execute on rebalance day, supporting prices higher.',
-    targetPrice: 320.0,
-    stopLoss: 265.0,
-    riskRating: 'Moderate'
   },
   {
-    id: 'port-2',
-    symbol: 'INDUSINDBK',
-    name: 'IndusInd Bank Ltd',
-    shares: 100,
-    avgBuyPrice: 1120.00,
-    buyDate: '2026-04-10',
-    notes: 'Long-term banking holding in broker account',
-    currentPrice: 980.50,
-    dayChangePercent: -1.45,
-    rebalanceStatus: 'Exclusion Vulnerable (-Outflows)',
-    suggestion: 'SELL_EXIT_NOW',
-    suggestionRationale: 'RECOMMENDATION: SELL / EXIT NOW. Stock has dropped to rank #50 in Nifty 50 with -18.2% negative alpha. Facing imminent 15-day exclusion with projected ₹1,870 Cr passive mutual fund dump.',
-    targetPrice: 920.0,
-    stopLoss: 1015.0,
-    riskRating: 'Critical'
-  },
-  {
-    id: 'port-3',
-    symbol: 'HDFCBANK',
-    name: 'HDFC Bank Ltd',
-    shares: 80,
-    avgBuyPrice: 1590.00,
-    buyDate: '2026-03-20',
-    notes: 'Core portfolio bluechip',
-    currentPrice: 1682.00,
-    dayChangePercent: 1.15,
+    symbol: 'TATAMOTORS',
+    name: 'Tata Motors Ltd',
+    sector: 'Automobile',
+    currentPrice: 975.40,
+    dayChangePercent: 0.65,
     rebalanceStatus: 'Core Constituent (Stable)',
-    suggestion: 'HOLD_FIRM',
-    suggestionRationale: 'HOLD FIRM. Top constituent anchor (~11.5% index weight). Zero rebalance deletion risk, steady passive fund backing, and favorable risk-reward.',
+    targetPrice: 1100.0,
+    stopLoss: 920.0,
+    riskRating: 'Low',
+    baseRationale: 'Established Nifty 50 constituent; JLR debt reduction and EV market leadership support steady institutional retention.',
+    defaultAction: 'HOLD_FIRM'
+  },
+  {
+    symbol: 'SBIN',
+    name: 'State Bank of India',
+    sector: 'Banking & Financials',
+    currentPrice: 792.30,
+    dayChangePercent: 0.40,
+    rebalanceStatus: 'Core Constituent (Stable)',
+    targetPrice: 870.0,
+    stopLoss: 750.0,
+    riskRating: 'Low',
+    baseRationale: 'Largest Indian public sector lender. Heavy domestic institutional anchor holding with permanent Nifty 50 status.',
+    defaultAction: 'HOLD_FIRM'
+  },
+  {
+    symbol: 'ITC',
+    name: 'ITC Ltd',
+    sector: 'FMCG / Diversified',
+    currentPrice: 508.80,
+    dayChangePercent: 0.30,
+    rebalanceStatus: 'Core Constituent (Stable)',
+    targetPrice: 560.0,
+    stopLoss: 480.0,
+    riskRating: 'Low',
+    baseRationale: 'Defensive blue-chip constituent with high cash dividend yield and zero rebalance deletion vulnerability.',
+    defaultAction: 'HOLD_FIRM'
+  },
+  {
+    symbol: 'BHARTIARTL',
+    name: 'Bharti Airtel Ltd',
+    sector: 'Telecommunications',
+    currentPrice: 1642.00,
+    dayChangePercent: 1.25,
+    rebalanceStatus: 'Core Constituent (Stable)',
     targetPrice: 1800.0,
-    stopLoss: 1620.0,
-    riskRating: 'Low'
+    stopLoss: 1550.0,
+    riskRating: 'Low',
+    baseRationale: 'Telecom industry ARPU expansion and 5G subscriber migration provide high earnings compounding. Safe core constituent.',
+    defaultAction: 'HOLD_FIRM'
   }
 ];
 
