@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span>F&amp;O Signals</span>
             </button>
 
-            {/* NEW: My Portfolio Tab */}
+            {/* Portfolio Advisor Tab */}
             <button
               onClick={() => onTabChange('portfolio')}
               className={`px-2.5 py-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
-              <span>My Portfolio</span>
+              <span>Portfolio Advisor</span>
               {portfolioCount > 0 && (
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   {portfolioCount}
@@ -180,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <Briefcase className="w-3 h-3 text-emerald-400" />
-            <span>My Portfolio {portfolioCount > 0 ? `(${portfolioCount})` : ''}</span>
+            <span>Portfolio Advisor {portfolioCount > 0 ? `(${portfolioCount})` : ''}</span>
           </button>
           <button
             onClick={() => onTabChange('daily')}

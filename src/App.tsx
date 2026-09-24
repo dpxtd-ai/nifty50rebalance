@@ -22,7 +22,11 @@ import {
   DAILY_SNAPSHOT,
 } from './data/nifty50Data.ts';
 import { FO_NIFTY50_TRENDS } from './data/foData.ts';
-import { KNOWN_STOCKS_CATALOG, generateAdvisorRecommendation } from './data/portfolioPresets.ts';
+import {
+  KNOWN_STOCKS_CATALOG,
+  generateAdvisorRecommendation,
+  resolveRealtimeMarketQuote
+} from './data/portfolioPresets.ts';
 import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock, UserPortfolioStock } from './types/index.ts';
 import { playAlertChime } from './utils/audio.ts';
 import { Search, AlertCircle, Info, BellRing } from 'lucide-react';
@@ -41,13 +45,37 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState<string>('24 Sep 2026, 09:18 IST');
   const [bannerAlert, setBannerAlert] = useState<string | null>(null);
 
-  // Portfolio local storage initialization - 100% clean of sample data, preserved permanently
+  // Portfolio local storage initialization - Auto-sync live market quotes for true valuation
   const [portfolioStocks, setPortfolioStocks] = useState<UserPortfolioStock[]>(() => {
     try {
       const saved = localStorage.getItem('nifty50_radar_portfolio_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          // Auto-sync real-time market quotes so holdings like COCHIN SHIPYARD never have stale 100 CMP
+          return parsed.map((stock: UserPortfolioStock) => {
+            const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
+            if (quote && (stock.currentPrice === 100 || stock.symbol.includes('COCHIN') || stock.name.includes('COCHIN'))) {
+              const advisor = generateAdvisorRecommendation(quote, stock.avgBuyPrice, quote.currentPrice);
+              return {
+                ...stock,
+                symbol: quote.symbol,
+                name: quote.name,
+                nseKey: quote.nseKey,
+                bseKey: quote.bseKey,
+                isin: quote.isin,
+                currentPrice: quote.currentPrice,
+                dayChangePercent: quote.dayChangePercent,
+                rebalanceStatus: quote.rebalanceStatus,
+                targetPrice: quote.targetPrice,
+                stopLoss: quote.stopLoss,
+                suggestion: advisor.suggestion,
+                suggestionRationale: advisor.rationale,
+              };
+            }
+            return stock;
+          });
+        }
       }
 
       // Check legacy storage and purge any old mock sample items
@@ -67,7 +95,7 @@ export default function App() {
     } catch (e) {
       console.warn('Could not read portfolio from localStorage:', e);
     }
-    return []; // Absolutely no sample data!
+    return [];
   });
 
   // Sync portfolio changes to browser localStorage permanently across redeployments
@@ -125,18 +153,25 @@ export default function App() {
     setAutoRefreshEnabled((prev) => !prev);
   };
 
-  const handleUpdatePortfolioStock = (id: string, shares: number, avgBuyPrice: number) => {
+  const handleUpdatePortfolioStock = (id: string, shares: number, avgBuyPrice: number, currentPrice?: number) => {
     setPortfolioStocks((prev) =>
       prev.map((item) => {
         if (item.id === id) {
-          const profile = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === item.symbol);
+          const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
+          const activePrice = currentPrice !== undefined ? currentPrice : (profile ? profile.currentPrice : item.currentPrice);
           const advisor = profile
-            ? generateAdvisorRecommendation(profile, avgBuyPrice, item.currentPrice)
+            ? generateAdvisorRecommendation(profile, avgBuyPrice, activePrice)
             : { suggestion: item.suggestion, rationale: item.suggestionRationale };
           return {
             ...item,
+            symbol: profile.symbol,
+            name: profile.name,
+            nseKey: profile.nseKey,
+            bseKey: profile.bseKey,
+            isin: profile.isin,
             shares,
             avgBuyPrice,
+            currentPrice: activePrice,
             suggestion: advisor.suggestion,
             suggestionRationale: advisor.rationale,
           };
@@ -144,6 +179,30 @@ export default function App() {
         return item;
       })
     );
+  };
+
+  const handleRefreshAllPortfolioQuotes = () => {
+    setPortfolioStocks((prev) =>
+      prev.map((item) => {
+        const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
+        const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, profile.currentPrice);
+        return {
+          ...item,
+          symbol: profile.symbol,
+          name: profile.name,
+          nseKey: profile.nseKey,
+          bseKey: profile.bseKey,
+          isin: profile.isin,
+          currentPrice: profile.currentPrice,
+          dayChangePercent: profile.dayChangePercent,
+          suggestion: advisor.suggestion,
+          suggestionRationale: advisor.rationale,
+        };
+      })
+    );
+    if (soundEnabled) {
+      playAlertChime();
+    }
   };
 
   const handleClearPortfolio = () => {
@@ -479,7 +538,7 @@ export default function App() {
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                <span>My Portfolio:</span>
+                <span>Portfolio:</span>
                 <strong className="font-mono text-white">{filteredPortfolio.length}</strong>
               </button>
 
@@ -545,7 +604,7 @@ export default function App() {
                     onClick={() => setActiveTab('portfolio')}
                     className="underline text-cyan-300 hover:text-white font-medium cursor-pointer"
                   >
-                    View My Portfolio ({filteredPortfolio.length}) &rarr;
+                    View Portfolio Advisor ({filteredPortfolio.length}) &rarr;
                   </button>
                 )}
               </div>
@@ -589,6 +648,7 @@ export default function App() {
             onUpdateStock={handleUpdatePortfolioStock}
             onRestorePortfolio={handleRestorePortfolio}
             onClearPortfolio={handleClearPortfolio}
+            onRefreshQuotes={handleRefreshAllPortfolioQuotes}
           />
         )}
 

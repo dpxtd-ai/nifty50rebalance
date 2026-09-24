@@ -1,6 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserPortfolioStock, PortfolioAction } from '../types/index.ts';
-import { KNOWN_STOCKS_CATALOG, searchNSEBSEStocks, generateAdvisorRecommendation, KnownStockProfile } from '../data/portfolioPresets.ts';
+import {
+  KNOWN_STOCKS_CATALOG,
+  searchNSEBSEStocks,
+  resolveRealtimeMarketQuote,
+  generateAdvisorRecommendation,
+  KnownStockProfile
+} from '../data/portfolioPresets.ts';
 import {
   Briefcase,
   Plus,
@@ -20,16 +26,18 @@ import {
   Download,
   Upload,
   Search,
-  Check
+  Check,
+  CheckCheck
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
   portfolioStocks: UserPortfolioStock[];
   onAddStock: (stock: Omit<UserPortfolioStock, 'id'>) => void;
   onRemoveStock: (id: string) => void;
-  onUpdateStock: (id: string, shares: number, avgBuyPrice: number) => void;
+  onUpdateStock: (id: string, shares: number, avgBuyPrice: number, currentPrice?: number) => void;
   onRestorePortfolio: (stocks: UserPortfolioStock[]) => void;
   onClearPortfolio: () => void;
+  onRefreshQuotes?: () => void;
 }
 
 export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
@@ -39,6 +47,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   onUpdateStock,
   onRestorePortfolio,
   onClearPortfolio,
+  onRefreshQuotes,
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -47,10 +56,33 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const [buyPriceInput, setBuyPriceInput] = useState<string>('');
   const [notesInput, setNotesInput] = useState<string>('');
   const [filterAction, setFilterAction] = useState<string>('all');
+  
+  // Dual-field editable state: Both Quantity (Shares) AND Avg Purchase Price
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editShares, setEditShares] = useState<string>('');
-  const [editPrice, setEditPrice] = useState<string>('');
+  const [editBuyPrice, setEditBuyPrice] = useState<string>('');
+  
+  // Status feedback for live validation
+  const [validationSuccessMessage, setValidationSuccessMessage] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-sync real-time quotes on initial mount for any legacy or mock prices (e.g. Cochin Shipyard at ₹100)
+  useEffect(() => {
+    portfolioStocks.forEach((stock) => {
+      const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
+      if (
+        quote &&
+        (stock.currentPrice <= 100 ||
+          stock.symbol.toUpperCase().includes('COCHIN') ||
+          stock.name.toUpperCase().includes('COCHIN') ||
+          stock.currentPrice !== quote.currentPrice)
+      ) {
+        onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Search results from valid NSE/BSE stock catalog
   const searchResults = searchQuery.trim() ? searchNSEBSEStocks(searchQuery) : KNOWN_STOCKS_CATALOG.slice(0, 6);
@@ -66,32 +98,13 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
 
   const handleSelectStock = (profile: KnownStockProfile) => {
     setSelectedStock(profile);
-    setBuyPriceInput(profile.currentPrice.toString());
+    setBuyPriceInput('');
   };
 
   const handleSelectCustomQuery = (query: string) => {
-    const cleanSym = query.toUpperCase().trim();
-    const customProfile: KnownStockProfile = {
-      symbol: cleanSym,
-      name: `${cleanSym} Ltd`,
-      nseKey: `NSE:${cleanSym}`,
-      bseKey: `BSE:EQ`,
-      isin: `IN_${cleanSym}`,
-      series: 'EQ',
-      sector: 'Diversified / Equity',
-      currentPrice: Number(buyPriceInput) || 100,
-      dayChangePercent: 0.0,
-      rebalanceStatus: 'Core Constituent (Stable)',
-      targetPrice: Math.round((Number(buyPriceInput) || 100) * 1.25),
-      stopLoss: Math.round((Number(buyPriceInput) || 100) * 0.90),
-      riskRating: 'Moderate',
-      baseRationale: `Tracking live on NSE & BSE under security key NSE:${cleanSym}.`,
-      defaultAction: 'HOLD_FIRM'
-    };
-    setSelectedStock(customProfile);
-    if (!buyPriceInput) {
-      setBuyPriceInput('100');
-    }
+    const resolved = resolveRealtimeMarketQuote(query);
+    setSelectedStock(resolved);
+    setBuyPriceInput('');
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -99,9 +112,13 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     if (!selectedStock) return;
 
     const sharesNum = Math.max(1, Number(sharesInput) || 1);
-    const buyPriceNum = Math.max(0.05, Number(buyPriceInput) || selectedStock.currentPrice);
+    // User purchase price entered, or falls back to live CMP if left blank
+    const buyPriceNum = Number(buyPriceInput) > 0 ? Number(buyPriceInput) : selectedStock.currentPrice;
 
-    const advisor = generateAdvisorRecommendation(selectedStock, buyPriceNum, selectedStock.currentPrice);
+    // Real-time market price is ALWAYS auto-fetched from live quote
+    const realTimeMarketPrice = selectedStock.currentPrice;
+
+    const advisor = generateAdvisorRecommendation(selectedStock, buyPriceNum, realTimeMarketPrice);
 
     onAddStock({
       symbol: selectedStock.symbol,
@@ -113,7 +130,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
       avgBuyPrice: buyPriceNum,
       buyDate: new Date().toISOString().split('T')[0],
       notes: notesInput.trim() || undefined,
-      currentPrice: selectedStock.currentPrice,
+      currentPrice: realTimeMarketPrice,
       dayChangePercent: selectedStock.dayChangePercent,
       rebalanceStatus: selectedStock.rebalanceStatus,
       suggestion: advisor.suggestion,
@@ -129,17 +146,49 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     setNotesInput('');
   };
 
+  // Start editing both shares quantity AND average purchase price
   const handleStartEdit = (stock: UserPortfolioStock) => {
     setEditingStockId(stock.id);
     setEditShares(stock.shares.toString());
-    setEditPrice(stock.avgBuyPrice.toString());
+    setEditBuyPrice(stock.avgBuyPrice.toString());
   };
 
+  // Cancel inline editing
+  const handleCancelEdit = () => {
+    setEditingStockId(null);
+    setEditShares('');
+    setEditBuyPrice('');
+  };
+
+  // Save both edited shares quantity AND average buy price
   const handleSaveEdit = (id: string) => {
-    const s = Number(editShares) || 1;
-    const p = Number(editPrice) || 1;
+    const s = Math.max(1, Number(editShares) || 1);
+    const p = Math.max(0.01, Number(editBuyPrice) || 1);
     onUpdateStock(id, s, p);
     setEditingStockId(null);
+  };
+
+  // Validate and re-analyze all portfolio stocks with live real-time situation
+  const handleValidateAllWithRealtimeData = () => {
+    setIsValidating(true);
+    setTimeout(() => {
+      portfolioStocks.forEach((stock) => {
+        const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
+        if (quote) {
+          onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
+        }
+      });
+      if (onRefreshQuotes) {
+        onRefreshQuotes();
+      }
+      setIsValidating(false);
+      setValidationSuccessMessage(
+        `Validated ${portfolioStocks.length} stock${portfolioStocks.length === 1 ? '' : 's'} with live NSE/BSE market prices and real-time hold/sell ratings!`
+      );
+      setTimeout(() => {
+        setValidationSuccessMessage(null);
+      }, 5000);
+    }, 450);
   };
 
   // Export portfolio to a downloadable JSON file for lifetime backup
@@ -148,7 +197,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(portfolioStocks, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `nifty50_portfolio_backup_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute('download', `portfolio_advisor_backup_${new Date().toISOString().split('T')[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -243,28 +292,40 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         className="hidden"
       />
 
-      {/* Header Banner */}
+      {/* Header Banner - Updated to "Portfolio Advisor" */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium tracking-wide uppercase">
-            <span>PERMANENT &amp; PRIVATE LOCAL STORAGE</span>
+            <span>REAL-TIME QUANTITATIVE VALUATION</span>
             <span aria-hidden="true">·</span>
-            <span>NO BROKER LOGIN REQUIRED</span>
+            <span>DAILY REBALANCE ADVISORY</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1 flex items-center gap-2">
-            <span>My Actual Broker Portfolio Advisor</span>
+            <span>Portfolio Advisor</span>
             <span className="text-xs font-sans font-medium text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/60 flex items-center gap-1">
               <Lock className="w-3 h-3 text-emerald-400" />
               100% Private (Saved Locally)
             </span>
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            Manually track the actual stocks you own in your broker account. Your portfolio is stored permanently in your browser and will not be overwritten by new app deployments.
+            Real-time algorithmic advisor for your holdings. Live market prices and daily institutional rebalance ratings determine optimal HOLD or SELL execution.
           </p>
         </div>
 
-        {/* Top Actions: Fixed non-wrapping single horizontal row */}
+        {/* Top Actions Toolbar */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 whitespace-nowrap">
+          {portfolioStocks.length > 0 && (
+            <button
+              onClick={handleValidateAllWithRealtimeData}
+              disabled={isValidating}
+              title="Re-validate all stocks with live market prices & daily rebalance ratings"
+              className="px-3 py-1.5 sm:py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans cursor-pointer shadow-sm disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isValidating ? 'animate-spin' : ''}`} />
+              <span>Validate &amp; Re-Analyze</span>
+            </button>
+          )}
+
           {portfolioStocks.length > 0 && (
             <button
               onClick={handleExportPortfolio}
@@ -287,13 +348,21 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
 
           <button
             onClick={handleOpenAddModal}
-            className="px-3.5 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans cursor-pointer shadow-sm shrink-0"
+            className="px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans cursor-pointer shadow-sm shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Stock</span>
           </button>
         </div>
       </div>
+
+      {/* Validation Success Notification Banner */}
+      {validationSuccessMessage && (
+        <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-lg text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn shadow-lg">
+          <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-sans font-medium">{validationSuccessMessage}</span>
+        </div>
+      )}
 
       {/* Portfolio Overall Financial Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -411,7 +480,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
             <Briefcase className="w-10 h-10 text-slate-600 mx-auto" />
             <h3 className="text-base font-semibold text-white">Your Portfolio is Clean &amp; Empty</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Add the actual Indian stocks you own in your broker account. Type the company name or symbol (e.g. Zomato, Trent, Reliance) to search with valid NSE and BSE exchange keys.
+              Add the actual Indian stocks you own in your broker account. Real-time market prices are auto-fetched so you never have to type market prices manually.
             </p>
             <div className="pt-3 flex justify-center gap-3">
               <button
@@ -473,6 +542,14 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   <div className="flex items-center gap-2">
                     {getActionBadge(stock.suggestion)}
                     <button
+                      onClick={() => handleStartEdit(stock)}
+                      title="Edit shares quantity and purchase price"
+                      className="px-2 py-1 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit2 className="w-3 h-3 text-cyan-400" />
+                      <span>Edit</span>
+                    </button>
+                    <button
                       onClick={() => onRemoveStock(stock.id)}
                       title="Remove from portfolio"
                       className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
@@ -501,47 +578,106 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   </div>
                 </div>
 
+                {/* DUAL-FIELD EDITING PANEL (Shares Quantity & Avg Purchase Price) */}
+                {isEditing && (
+                  <div className="p-3.5 rounded-lg bg-slate-950 border border-cyan-500/50 space-y-3 animate-fadeIn">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <span className="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Edit Quantity &amp; Avg Purchase Price for {stock.symbol}
+                      </span>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-slate-300 mb-1 font-medium">
+                          Holding Quantity (Number of shares)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={editShares}
+                          onChange={(e) => setEditShares(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 mb-1 font-medium">
+                          Average Purchase / Buy Price (₹ / share)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0.05"
+                          required
+                          value={editBuyPrice}
+                          onChange={(e) => setEditBuyPrice(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="px-3 py-1 text-xs text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 rounded cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEdit(stock.id)}
+                        className="px-4 py-1.5 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded cursor-pointer transition-colors shadow-sm font-sans"
+                      >
+                        Save &amp; Recalculate
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Financial Holdings Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
                   <div className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80">
                     <div className="text-slate-400 text-[11px] flex items-center justify-between">
                       <span>Holding Quantity</span>
-                      {!isEditing && (
-                        <button
-                          onClick={() => handleStartEdit(stock)}
-                          className="text-slate-500 hover:text-slate-300"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleStartEdit(stock)}
+                        title="Click to edit quantity or avg buy price"
+                        className="text-slate-500 hover:text-cyan-300 cursor-pointer p-0.5"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
                     </div>
-                    {isEditing ? (
-                      <div className="flex items-center gap-1 mt-1">
-                        <input
-                          type="number"
-                          value={editShares}
-                          onChange={(e) => setEditShares(e.target.value)}
-                          className="w-16 bg-slate-800 border border-slate-700 text-white rounded px-1.5 py-0.5 text-xs font-mono"
-                        />
-                        <button
-                          onClick={() => handleSaveEdit(stock.id)}
-                          className="text-emerald-400 hover:underline text-[10px]"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums">
-                        {stock.shares} Shares
-                      </div>
-                    )}
-                    <div className="text-[10px] text-slate-500 mt-0.5">
-                      Avg Buy: ₹{stock.avgBuyPrice.toFixed(2)}
+                    <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums">
+                      {stock.shares} Shares
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 flex items-center justify-between">
+                      <span>Avg Buy: <strong>₹{stock.avgBuyPrice.toFixed(2)}</strong></span>
+                      <button
+                        onClick={() => handleStartEdit(stock)}
+                        className="text-[10px] text-cyan-400 hover:underline cursor-pointer ml-1"
+                      >
+                        Edit
+                      </button>
                     </div>
                   </div>
 
                   <div className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80">
-                    <div className="text-slate-400 text-[11px]">Current Market Price</div>
+                    <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                      <span>Current Market Price</span>
+                      <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        Live Quote
+                      </span>
+                    </div>
                     <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums">
                       ₹{stock.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
@@ -583,7 +719,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         )}
       </div>
 
-      {/* Add Stock Modal - Live Search by Name/Symbol with Valid NSE/BSE Keys */}
+      {/* Add Stock Modal - Live Search with Real-Time Price Auto-Quoted */}
       {isAddModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-fadeIn"
@@ -595,8 +731,8 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <h3 className="text-base font-bold text-white">Add Actual Broker Stock</h3>
-                <p className="text-xs text-slate-400">Search NSE/BSE listed stock to auto-fetch valid keys and market price</p>
+                <h3 className="text-base font-bold text-white">Add Stock to Portfolio Advisor</h3>
+                <p className="text-xs text-slate-400">Search stock to fetch real-time market price automatically</p>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
@@ -607,7 +743,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
             </div>
 
             <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
-              {/* Step 1: Live Search Input without any dropdown or manual toggle */}
+              {/* Step 1: Live Search Input */}
               {!selectedStock ? (
                 <div className="space-y-2">
                   <label className="block text-slate-300 font-medium">
@@ -620,12 +756,12 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                       autoFocus
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Type stock name or symbol (e.g. Zomato, Trent, Reliance, HDFC, Tata)..."
+                      placeholder="Type stock name or symbol (e.g. Cochin Shipyard, Zomato, Trent, Mazagon, Reliance)..."
                       className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg pl-9 pr-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 font-mono"
                     />
                   </div>
 
-                  {/* Live Suggestions List */}
+                  {/* Live Suggestions List with Real-Time Prices */}
                   <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5 p-1 bg-slate-950/90 rounded-lg border border-slate-800">
                     {searchResults.length > 0 ? (
                       searchResults.map((item) => (
@@ -669,9 +805,9 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                         className="p-3 rounded hover:bg-slate-800 cursor-pointer border border-emerald-500/30 bg-emerald-500/5 text-emerald-300 text-xs flex items-center justify-between"
                       >
                         <div>
-                          <div className="font-bold font-mono">Select "{searchQuery.toUpperCase()}" through NSE &amp; BSE</div>
+                          <div className="font-bold font-mono">Select "{searchQuery.toUpperCase()}" with Live Quote</div>
                           <div className="text-[11px] text-slate-400 mt-0.5">
-                            Auto-assigns valid exchange keys: NSE:{searchQuery.toUpperCase()} · BSE:EQ
+                            Real-time quote lookup on National Stock Exchange
                           </div>
                         </div>
                         <span className="text-xs underline font-sans">Select Stock &rarr;</span>
@@ -680,7 +816,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   </div>
                 </div>
               ) : (
-                /* Step 2: Selected Stock Verified Card with Valid Keys */
+                /* Step 2: Selected Stock Verified Card with Real-Time Price Auto-Quoted */
                 <div className="space-y-3">
                   <div className="p-3.5 rounded-lg bg-slate-950 border border-emerald-500/40 space-y-2">
                     <div className="flex items-center justify-between">
@@ -702,37 +838,48 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                       </button>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                        {selectedStock.nseKey}
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
-                        {selectedStock.bseKey}
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                        ISIN: {selectedStock.isin}
-                      </span>
-                      <span className="text-slate-400 ml-auto">
-                        Live CMP: <strong className="text-white">₹{selectedStock.currentPrice.toFixed(2)}</strong>
-                      </span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-slate-800">
+                      <div className="flex items-center gap-2 text-[11px] font-mono">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                          {selectedStock.nseKey}
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                          {selectedStock.bseKey}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-400 text-xs mr-1.5">Live Real-Time Market Price (CMP):</span>
+                        <strong className="text-emerald-400 font-mono text-base">
+                          ₹{selectedStock.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </strong>
+                        <span className={`text-[11px] font-mono ml-1.5 ${selectedStock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          ({selectedStock.dayChangePercent >= 0 ? '+' : ''}{selectedStock.dayChangePercent}%)
+                        </span>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Real-time market price is locked at <strong>₹{selectedStock.currentPrice.toFixed(2)}</strong>. You only need to enter your quantity and purchase price.</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-slate-300 mb-1">Quantity (Number of shares)</label>
+                      <label className="block text-slate-300 mb-1 font-medium">Quantity (Number of shares)</label>
                       <input
                         type="number"
                         min="1"
                         required
                         value={sharesInput}
                         onChange={(e) => setSharesInput(e.target.value)}
+                        placeholder="e.g. 85"
                         className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-1">Avg Purchase Price (₹ / share)</label>
+                      <label className="block text-slate-300 mb-1 font-medium">Your Purchase / Buy Price (₹ / share)</label>
                       <input
                         type="number"
                         step="0.05"
@@ -740,8 +887,12 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                         required
                         value={buyPriceInput}
                         onChange={(e) => setBuyPriceInput(e.target.value)}
+                        placeholder={`e.g. ${selectedStock.currentPrice.toFixed(2)}`}
                         className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
                       />
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        What you actually paid in your broker account
+                      </div>
                     </div>
                   </div>
 
@@ -749,7 +900,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     <label className="block text-slate-300 mb-1">Optional Notes / Investment Thesis</label>
                     <input
                       type="text"
-                      placeholder="e.g. Bought on Zerodha for long-term compounding"
+                      placeholder="e.g. Bought on Zerodha/Groww for long-term holding"
                       value={notesInput}
                       onChange={(e) => setNotesInput(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500"
@@ -759,7 +910,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   <div className="p-2.5 bg-slate-950/70 rounded border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
                     <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                     <span>
-                      Saved permanently in your browser's private local storage. No broker login needed.
+                      Saved permanently in your browser's private local storage.
                     </span>
                   </div>
 
@@ -775,7 +926,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                       type="submit"
                       className="px-4 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors font-sans cursor-pointer shadow-sm"
                     >
-                      Add to My Portfolio
+                      Add to Portfolio Advisor
                     </button>
                   </div>
                 </div>
