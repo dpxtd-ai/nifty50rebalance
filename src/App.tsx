@@ -11,6 +11,7 @@ import { ExclusionsWatchlist } from './components/ExclusionsWatchlist.tsx';
 import { DeletedArchive } from './components/DeletedArchive.tsx';
 import { DailyAnalysisView } from './components/DailyAnalysisView.tsx';
 import { RealTimeAlerts } from './components/RealTimeAlerts.tsx';
+import { FOTrendsView } from './components/FOTrendsView.tsx';
 import { StockDetailModal } from './components/StockDetailModal.tsx';
 import {
   UPCOMING_INCLUSIONS,
@@ -19,13 +20,17 @@ import {
   OFFICIAL_REBALANCE_ALERTS,
   DAILY_SNAPSHOT,
 } from './data/nifty50Data.ts';
-import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert } from './types/index.ts';
+import { FO_NIFTY50_TRENDS } from './data/foData.ts';
+import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock } from './types/index.ts';
 import { playAlertChime } from './utils/audio.ts';
 import { Search, AlertCircle, Info, BellRing } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'exclusions' | 'deleted' | 'daily' | 'alerts'>('upcoming');
+  const [activeTab, setActiveTab] = useState<NavTab>('upcoming');
   const [alerts, setAlerts] = useState<RebalanceAlert[]>(OFFICIAL_REBALANCE_ALERTS);
+  const [foStocks, setFoStocks] = useState<FOTrendStock[]>(FO_NIFTY50_TRENDS);
+  const [isFoRefreshing, setIsFoRefreshing] = useState<boolean>(false);
+  const [foLastUpdated, setFoLastUpdated] = useState<string>('Live Session (09:18 IST)');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [selectedStock, setSelectedStock] = useState<UpcomingInclusionStock | ExclusionDelistingStock | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -46,6 +51,37 @@ export default function App() {
 
   const handleToggleSound = () => {
     setSoundEnabled((prev) => !prev);
+  };
+
+  const handleRefreshFOTicks = () => {
+    setIsFoRefreshing(true);
+    setTimeout(() => {
+      setFoStocks((prev) =>
+        prev.map((stock) => {
+          const delta = (Math.random() - 0.48) * 0.008; // -0.4% to +0.4%
+          const newSpot = Math.round((stock.spotPrice * (1 + delta)) * 100) / 100;
+          const newBasis = Math.round((stock.basis + (Math.random() - 0.5) * 0.4) * 100) / 100;
+          const newFuture = Math.round((newSpot + newBasis) * 100) / 100;
+          const newChangePercent = Math.round((stock.changePercent + delta * 100) * 100) / 100;
+          const newOiChange = Math.round((stock.oiChangePercent + (Math.random() - 0.4) * 1.5) * 10) / 10;
+          return {
+            ...stock,
+            spotPrice: newSpot,
+            futurePrice: newFuture,
+            basis: newBasis,
+            changePercent: newChangePercent,
+            oiChangePercent: newOiChange,
+          };
+        })
+      );
+      setIsFoRefreshing(false);
+      const now = new Date();
+      const timeStr = `Live Ticks (${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} IST)`;
+      setFoLastUpdated(timeStr);
+      if (soundEnabled) {
+        playAlertChime();
+      }
+    }, 500);
   };
 
   const handleSelectStockBySymbol = (symbol: string) => {
@@ -220,6 +256,16 @@ export default function App() {
           <ExclusionsWatchlist
             stocks={filteredExclusions}
             onSelectStock={(stock) => setSelectedStock(stock)}
+          />
+        )}
+
+        {activeTab === 'fo_trends' && (
+          <FOTrendsView
+            foStocks={foStocks}
+            onSelectStock={handleSelectStockBySymbol}
+            onRefreshFOTicks={handleRefreshFOTicks}
+            isRefreshing={isFoRefreshing}
+            lastUpdated={foLastUpdated}
           />
         )}
 

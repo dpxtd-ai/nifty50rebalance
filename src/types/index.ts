@@ -107,3 +107,41 @@ export interface DailyRebalanceSnapshot {
   highestProbabilityStock: string;
   immediate15DayExclusionCandidate: string;
 }
+
+export type NavTab = 'upcoming' | 'exclusions' | 'deleted' | 'daily' | 'alerts' | 'fo_trends';
+
+export type FOSignalType = 'STRONG_BUY' | 'BUY_ON_DIPS' | 'SELL_SHORT' | 'BOOK_PROFIT_EXIT' | 'NEUTRAL';
+
+export type OITrendType = 'Long Buildup' | 'Short Covering' | 'Short Buildup' | 'Long Unwinding';
+
+export interface FOTrendStock {
+  id: string;
+  symbol: string;
+  name: string;
+  sector: string;
+  nifty50Category: 'Inclusion Contender' | 'Existing Constituent' | 'Endangered Constituent';
+  spotPrice: number;
+  futurePrice: number;
+  basis: number; // Future price - Spot price (Premium/Discount)
+  changePercent: number;
+  oiChangePercent: number; // e.g., +14.2%
+  oiContracts: number;
+  oiTrend: OITrendType;
+  pcrRatio: number; // Put-Call ratio
+  maxPainStrike: number;
+  atmIV: number; // Implied volatility %
+  rsi14: number;
+  vwap: number;
+  isAboveVwap: boolean;
+  recommendation: {
+    action: FOSignalType;
+    confidencePercent: number;
+    entryRange: string;
+    targetPrice: number;
+    stopLoss: number;
+    riskRewardRatio: string;
+    timeHorizon: 'Intraday / BTST' | 'Positional (1-2 Weeks)' | 'Expiry Swing';
+    rationale: string;
+    rebalanceImpact: string;
+  };
+}

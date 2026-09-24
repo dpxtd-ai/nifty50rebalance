@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { UpcomingInclusionStock, ExclusionDelistingStock } from '../types/index.ts';
 import { X, CheckCircle2, XCircle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Layers, FileText } from 'lucide-react';
 import { DAILY_SNAPSHOT } from '../data/nifty50Data.ts';
@@ -9,6 +9,27 @@ interface StockDetailModalProps {
 }
 
 export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClose }) => {
+  // Prevent background scrolling when modal is open and handle escape key
+  useEffect(() => {
+    if (!stock) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [stock, onClose]);
+
   if (!stock) return null;
 
   const isUpcoming = 'currentRankInEligibleUniverse' in stock;
@@ -33,13 +54,16 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClo
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+    >
       <div
-        className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-slate-900 border border-slate-700/80 rounded-xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 sticky top-0 bg-slate-900/95 backdrop-blur z-10">
+        {/* Modal Header - Fixed */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900 shrink-0">
           <div className="flex items-center gap-3">
             <div>
               <div className="flex items-center gap-2">
@@ -65,13 +89,14 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClo
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-5 space-y-6 text-xs text-slate-300">
+        {/* Modal Body - Scrollable */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-5 text-xs text-slate-300">
           {/* Key Quantitative Stat Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
@@ -217,11 +242,11 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClo
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900 flex justify-end">
+        {/* Modal Footer - Fixed */}
+        <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-900 shrink-0 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 rounded transition-colors"
+            className="px-4 py-2 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 rounded transition-colors cursor-pointer"
           >
             Close Overview
           </button>
@@ -230,3 +255,4 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClo
     </div>
   );
 };
+
