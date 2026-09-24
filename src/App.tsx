@@ -12,6 +12,7 @@ import { DeletedArchive } from './components/DeletedArchive.tsx';
 import { DailyAnalysisView } from './components/DailyAnalysisView.tsx';
 import { RealTimeAlerts } from './components/RealTimeAlerts.tsx';
 import { FOTrendsView } from './components/FOTrendsView.tsx';
+import { MyPortfolioView } from './components/MyPortfolioView.tsx';
 import { StockDetailModal } from './components/StockDetailModal.tsx';
 import {
   UPCOMING_INCLUSIONS,
@@ -21,7 +22,8 @@ import {
   DAILY_SNAPSHOT,
 } from './data/nifty50Data.ts';
 import { FO_NIFTY50_TRENDS } from './data/foData.ts';
-import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock } from './types/index.ts';
+import { INITIAL_PORTFOLIO_SAMPLE, KNOWN_STOCKS_CATALOG, generateAdvisorRecommendation } from './data/portfolioPresets.ts';
+import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock, UserPortfolioStock } from './types/index.ts';
 import { playAlertChime } from './utils/audio.ts';
 import { Search, AlertCircle, Info, BellRing } from 'lucide-react';
 
@@ -36,6 +38,72 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<string>('24 Sep 2026, 09:18 IST');
   const [bannerAlert, setBannerAlert] = useState<string | null>(null);
+
+  // Portfolio local storage initialization
+  const [portfolioStocks, setPortfolioStocks] = useState<UserPortfolioStock[]>(() => {
+    try {
+      const saved = localStorage.getItem('nifty50_radar_portfolio');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Could not read portfolio from localStorage:', e);
+    }
+    return INITIAL_PORTFOLIO_SAMPLE;
+  });
+
+  // Sync portfolio changes to browser localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('nifty50_radar_portfolio', JSON.stringify(portfolioStocks));
+    } catch (e) {
+      console.warn('Could not save portfolio to localStorage:', e);
+    }
+  }, [portfolioStocks]);
+
+  const handleAddPortfolioStock = (stockData: Omit<UserPortfolioStock, 'id'>) => {
+    const newStock: UserPortfolioStock = {
+      ...stockData,
+      id: 'port-' + Date.now(),
+    };
+    setPortfolioStocks((prev) => [newStock, ...prev]);
+    if (soundEnabled) {
+      playAlertChime();
+    }
+  };
+
+  const handleRemovePortfolioStock = (id: string) => {
+    setPortfolioStocks((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleUpdatePortfolioStock = (id: string, shares: number, avgBuyPrice: number) => {
+    setPortfolioStocks((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const profile = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === item.symbol);
+          const advisor = profile
+            ? generateAdvisorRecommendation(profile, avgBuyPrice, item.currentPrice)
+            : { suggestion: item.suggestion, rationale: item.suggestionRationale };
+          return {
+            ...item,
+            shares,
+            avgBuyPrice,
+            suggestion: advisor.suggestion,
+            suggestionRationale: advisor.rationale,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleLoadSamplePortfolio = () => {
+    setPortfolioStocks(INITIAL_PORTFOLIO_SAMPLE);
+  };
+
+  const handleClearPortfolio = () => {
+    setPortfolioStocks([]);
+  };
 
   const unreadCount = alerts.filter((a) => !a.read).length;
 
@@ -183,6 +251,7 @@ export default function App() {
         onToggleSound={handleToggleSound}
         onTriggerLiveAlert={handleTriggerLiveAlert}
         lastUpdated={lastUpdated}
+        portfolioCount={portfolioStocks.length}
       />
 
       {/* Real-Time Alert Banner if new circular arrives */}
@@ -266,6 +335,17 @@ export default function App() {
             onRefreshFOTicks={handleRefreshFOTicks}
             isRefreshing={isFoRefreshing}
             lastUpdated={foLastUpdated}
+          />
+        )}
+
+        {activeTab === 'portfolio' && (
+          <MyPortfolioView
+            portfolioStocks={portfolioStocks}
+            onAddStock={handleAddPortfolioStock}
+            onRemoveStock={handleRemovePortfolioStock}
+            onUpdateStock={handleUpdatePortfolioStock}
+            onLoadSamplePortfolio={handleLoadSamplePortfolio}
+            onClearPortfolio={handleClearPortfolio}
           />
         )}
 

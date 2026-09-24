@@ -20,6 +20,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 68.4,
     vwap: 281.80,
     isAboveVwap: true,
+    timing: {
+      status: 'BUY_NOW',
+      headline: 'RIGHT TIME TO BUY NOW - Optimal Breakout Entry Active',
+      actionPrompt: 'High conviction buying window currently open. Current spot ₹284.60 is sustaining above VWAP (₹281.80) with 285 CE call short-covering underway. Enter long position with strict stop-loss at ₹272.',
+      validityWindow: 'Active right now (Next 15–20 minutes optimal before next leg)',
+      checklist: {
+        candleSignal: '15-Minute Bullish Candle close above prior resistance',
+        vwapStatus: 'Trading +₹2.80 above intraday VWAP with rising slope',
+        volumeConfirmation: '2.4x average 30-day volume surge on breakout',
+        derivativesOrderFlow: 'Aggressive 280 PE put writing (+42,000 contracts added)'
+      }
+    },
     recommendation: {
       action: 'STRONG_BUY',
       confidencePercent: 94,
@@ -51,6 +63,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 71.2,
     vwap: 7380.00,
     isAboveVwap: true,
+    timing: {
+      status: 'WAIT_FOR_DIP',
+      headline: 'DO NOT CHASE NOW - Wait for Pullback to ₹7,380-₹7,400',
+      actionPrompt: 'Intraday 14-period RSI is extended at 71.2 near daily upper Bollinger Band. Avoid chasing at ₹7,420. The optimal right time to buy will trigger on a retest of VWAP support around ₹7,380.',
+      validityWindow: 'Trigger pending: Wait for retracement into entry range',
+      checklist: {
+        candleSignal: 'Consolidating near day highs; awaiting 5M candle pullback',
+        vwapStatus: 'Overextended +₹40 above VWAP; mean reversion dip expected',
+        volumeConfirmation: 'Steady institutional flow, but short-term profit taking visible',
+        derivativesOrderFlow: '7400 CE seeing slight writing; wait for dip absorption'
+      }
+    },
     recommendation: {
       action: 'BUY_ON_DIPS',
       confidencePercent: 91,
@@ -82,6 +106,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 61.5,
     vwap: 346.20,
     isAboveVwap: true,
+    timing: {
+      status: 'BUY_NOW',
+      headline: 'RIGHT TIME TO BUY NOW - Coiling at ₹348 Resistance Barrier',
+      actionPrompt: 'Right time to initiate long position. Price is respecting ₹346.20 VWAP cushion with steady put addition at 345 strike. A breakout above ₹350 could cause rapid short squeeze.',
+      validityWindow: 'Active session timing (Pre-breakout positioning)',
+      checklist: {
+        candleSignal: 'Higher lows forming on 30-min chart',
+        vwapStatus: 'Safely holding above VWAP with tight standard deviation bands',
+        volumeConfirmation: 'Gradual volume buildup ahead of afternoon session',
+        derivativesOrderFlow: 'Puts added at 345 & 340 strikes creating firm support base'
+      }
+    },
     recommendation: {
       action: 'STRONG_BUY',
       confidencePercent: 86,
@@ -113,6 +149,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 31.2,
     vwap: 988.40,
     isAboveVwap: false,
+    timing: {
+      status: 'SELL_SHORT_NOW',
+      headline: 'RIGHT TIME TO SELL / SHORT NOW - Fresh Breakdown Underway',
+      actionPrompt: 'Optimal shorting window active right now. Stock breached crucial ₹985 support on high volume with future trading at steep -₹4.30 discount. Place stop-loss at ₹1,010 for immediate target ₹920.',
+      validityWindow: 'Immediate execution window active',
+      checklist: {
+        candleSignal: 'Clear breakdown candle below 50-DMA and morning swing low',
+        vwapStatus: 'Rejected hard -₹7.90 below VWAP; bears in full command',
+        volumeConfirmation: '3.1x surge in sell volume on futures contract',
+        derivativesOrderFlow: 'Massive call writing at 1000 CE (+65,000 contracts added)'
+      }
+    },
     recommendation: {
       action: 'SELL_SHORT',
       confidencePercent: 93,
@@ -144,6 +192,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 38.6,
     vwap: 314.50,
     isAboveVwap: false,
+    timing: {
+      status: 'SELL_SHORT_NOW',
+      headline: 'RIGHT TIME TO SELL / SHORT NOW - Rejection at ₹314.50 VWAP',
+      actionPrompt: 'Right time to short or exit long hedges. Multiple intraday attempts to reclaim VWAP have failed. Put buyers dominating order book with expectation of further slide toward ₹292.',
+      validityWindow: 'Short timing active on intraday bounces to ₹313-₹314',
+      checklist: {
+        candleSignal: 'Bearish rejection wick at session VWAP line',
+        vwapStatus: 'Pinned below VWAP continuously for 6 consecutive 15M candles',
+        volumeConfirmation: 'Weak buying volume on bounces; sell volume accelerating',
+        derivativesOrderFlow: 'Call open interest shifting downward to 315 strike'
+      }
+    },
     recommendation: {
       action: 'SELL_SHORT',
       confidencePercent: 88,
@@ -175,6 +235,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 58.7,
     vwap: 1675.20,
     isAboveVwap: true,
+    timing: {
+      status: 'BUY_NOW',
+      headline: 'RIGHT TIME TO BUY NOW - Short Covering Rally Confirmed',
+      actionPrompt: 'Right time to buy. Bears forced to cover as spot trades comfortably above ₹1,680 max pain. Positive basis (+₹4.50) indicates derivative traders are turning aggressively net-long.',
+      validityWindow: 'Active session timing (Momentum underway)',
+      checklist: {
+        candleSignal: 'Clean breakout above 1675 intraday pivot',
+        vwapStatus: '+₹6.80 above VWAP with strong buying volume',
+        volumeConfirmation: 'Highest 1-hour volume of the week',
+        derivativesOrderFlow: '1680 CE open interest down -18% (Panicked short-covering)'
+      }
+    },
     recommendation: {
       action: 'BUY_ON_DIPS',
       confidencePercent: 82,
@@ -206,6 +278,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 63.1,
     vwap: 2972.40,
     isAboveVwap: true,
+    timing: {
+      status: 'WAIT_FOR_DIP',
+      headline: 'WAIT FOR DIP - Key Resistance at ₹3,000 Approaching',
+      actionPrompt: 'Approaching major psychological hurdle at ₹3,000 round strike where maximum call open interest is concentrated. Wait for pullback towards ₹2,970 before initiating fresh long positions.',
+      validityWindow: 'Wait for test of ₹2,970 support',
+      checklist: {
+        candleSignal: 'Doji candle on 15M chart showing hesitation near 3,000',
+        vwapStatus: 'Holding above VWAP but distance narrowing',
+        volumeConfirmation: 'Normalizing after early morning opening spike',
+        derivativesOrderFlow: 'Heavy 3000 CE call writing capping immediate upside'
+      }
+    },
     recommendation: {
       action: 'BUY_ON_DIPS',
       confidencePercent: 85,
@@ -237,6 +321,18 @@ export const FO_NIFTY50_TRENDS: FOTrendStock[] = [
     rsi14: 42.0,
     vwap: 535.80,
     isAboveVwap: false,
+    timing: {
+      status: 'SELL_SHORT_NOW',
+      headline: 'RIGHT TIME TO SELL / SHORT NOW - Weak Momentum Below ₹535',
+      actionPrompt: 'Sell / Short window active. Stock rejected from 540 strike with fresh call open interest added. Negative basis and weak relative strength versus Nifty IT index.',
+      validityWindow: 'Short trigger active below ₹535.80 VWAP',
+      checklist: {
+        candleSignal: 'Bearish continuation pattern on 1-hour time frame',
+        vwapStatus: 'Trading -₹3.70 below VWAP; lower highs persisting',
+        volumeConfirmation: 'Selling pressure on every intraday up-tick',
+        derivativesOrderFlow: '540 CE call wall firmly established by institutional writers'
+      }
+    },
     recommendation: {
       action: 'SELL_SHORT',
       confidencePercent: 81,

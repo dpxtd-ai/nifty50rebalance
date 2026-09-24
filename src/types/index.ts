@@ -108,11 +108,33 @@ export interface DailyRebalanceSnapshot {
   immediate15DayExclusionCandidate: string;
 }
 
-export type NavTab = 'upcoming' | 'exclusions' | 'deleted' | 'daily' | 'alerts' | 'fo_trends';
+export type NavTab = 'upcoming' | 'exclusions' | 'deleted' | 'daily' | 'alerts' | 'fo_trends' | 'portfolio';
+
+export type PortfolioAction = 'HOLD_FIRM' | 'ACCUMULATE' | 'BOOK_PARTIAL_PROFIT' | 'SELL_EXIT_NOW';
+
+export interface UserPortfolioStock {
+  id: string;
+  symbol: string;
+  name: string;
+  shares: number;
+  avgBuyPrice: number;
+  buyDate?: string;
+  notes?: string;
+  currentPrice: number;
+  dayChangePercent: number;
+  rebalanceStatus: 'Upcoming Inclusion (+Inflows)' | 'Exclusion Vulnerable (-Outflows)' | 'Core Constituent (Stable)' | 'High Alpha Contender';
+  suggestion: PortfolioAction;
+  suggestionRationale: string;
+  targetPrice: number;
+  stopLoss: number;
+  riskRating: 'Low' | 'Moderate' | 'High' | 'Critical';
+}
 
 export type FOSignalType = 'STRONG_BUY' | 'BUY_ON_DIPS' | 'SELL_SHORT' | 'BOOK_PROFIT_EXIT' | 'NEUTRAL';
 
 export type OITrendType = 'Long Buildup' | 'Short Covering' | 'Short Buildup' | 'Long Unwinding';
+
+export type TimingStatus = 'BUY_NOW' | 'WAIT_FOR_DIP' | 'SELL_SHORT_NOW' | 'BOOK_PROFIT_NOW' | 'RANGE_WAIT';
 
 export interface FOTrendStock {
   id: string;
@@ -133,6 +155,18 @@ export interface FOTrendStock {
   rsi14: number;
   vwap: number;
   isAboveVwap: boolean;
+  timing: {
+    status: TimingStatus;
+    headline: string; // e.g., "RIGHT TIME TO BUY NOW - Momentum Breakout Active"
+    actionPrompt: string; // Real-time prompt message
+    validityWindow: string; // e.g., "Next 18 minutes optimal"
+    checklist: {
+      candleSignal: string;
+      vwapStatus: string;
+      volumeConfirmation: string;
+      derivativesOrderFlow: string;
+    };
+  };
   recommendation: {
     action: FOSignalType;
     confidencePercent: number;
