@@ -123,11 +123,11 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
         </div>
 
         {/* Action button & timestamp with 30s auto-refresh countdown */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
           <button
             onClick={onToggleAutoRefresh}
             title={autoRefreshEnabled ? "Click to pause 30s auto-refresh" : "Click to resume 30s auto-refresh"}
-            className={`px-2.5 py-1.5 rounded text-xs font-mono border flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`px-2.5 py-1.5 rounded text-xs font-mono border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
               autoRefreshEnabled
                 ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
                 : 'bg-slate-900 border-slate-700 text-slate-400'
@@ -137,15 +137,10 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
             <span>Auto: {autoRefreshEnabled ? `${autoRefreshSecondsLeft}s` : 'Paused'}</span>
           </button>
 
-          <div className="text-right hidden sm:block">
-            <div className="text-[11px] text-slate-400">Live OI Cycle</div>
-            <div className="text-xs font-mono text-amber-300">{lastUpdated}</div>
-          </div>
-
           <button
             onClick={onRefreshFOTicks}
             disabled={isRefreshing}
-            className="px-3.5 py-2 text-xs font-medium text-slate-900 bg-amber-400 hover:bg-amber-300 rounded transition-colors flex items-center gap-2 font-sans cursor-pointer disabled:opacity-50 shadow-sm"
+            className="px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-medium text-slate-900 bg-amber-400 hover:bg-amber-300 rounded transition-colors flex items-center gap-1.5 sm:gap-2 font-sans cursor-pointer disabled:opacity-50 shadow-sm shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>Refresh Timing Ticks</span>

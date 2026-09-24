@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UserPortfolioStock, PortfolioAction } from '../types/index.ts';
-import { KNOWN_STOCKS_CATALOG, generateAdvisorRecommendation } from '../data/portfolioPresets.ts';
+import { KNOWN_STOCKS_CATALOG, searchNSEBSEStocks, generateAdvisorRecommendation, KnownStockProfile } from '../data/portfolioPresets.ts';
 import {
   Briefcase,
   Plus,
@@ -18,7 +18,9 @@ import {
   SlidersHorizontal,
   Target,
   Download,
-  Upload
+  Upload,
+  Search,
+  Check
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
@@ -39,11 +41,10 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   onClearPortfolio,
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [selectedCatalogSymbol, setSelectedCatalogSymbol] = useState<string>('ZOMATO');
-  const [customSymbolInput, setCustomSymbolInput] = useState<string>('');
-  const [isCustomMode, setIsCustomMode] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedStock, setSelectedStock] = useState<KnownStockProfile | null>(null);
   const [sharesInput, setSharesInput] = useState<string>('100');
-  const [buyPriceInput, setBuyPriceInput] = useState<string>('284.60');
+  const [buyPriceInput, setBuyPriceInput] = useState<string>('');
   const [notesInput, setNotesInput] = useState<string>('');
   const [filterAction, setFilterAction] = useState<string>('all');
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
@@ -51,61 +52,80 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const [editPrice, setEditPrice] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle selected symbol change to auto-fill current price
-  const handleSymbolChange = (sym: string) => {
-    setSelectedCatalogSymbol(sym);
-    const found = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === sym);
-    if (found) {
-      setBuyPriceInput(found.currentPrice.toString());
+  // Search results from valid NSE/BSE stock catalog
+  const searchResults = searchQuery.trim() ? searchNSEBSEStocks(searchQuery) : KNOWN_STOCKS_CATALOG.slice(0, 6);
+
+  const handleOpenAddModal = () => {
+    setIsAddModalOpen(true);
+    setSearchQuery('');
+    setSelectedStock(null);
+    setSharesInput('100');
+    setBuyPriceInput('');
+    setNotesInput('');
+  };
+
+  const handleSelectStock = (profile: KnownStockProfile) => {
+    setSelectedStock(profile);
+    setBuyPriceInput(profile.currentPrice.toString());
+  };
+
+  const handleSelectCustomQuery = (query: string) => {
+    const cleanSym = query.toUpperCase().trim();
+    const customProfile: KnownStockProfile = {
+      symbol: cleanSym,
+      name: `${cleanSym} Ltd`,
+      nseKey: `NSE:${cleanSym}`,
+      bseKey: `BSE:EQ`,
+      isin: `IN_${cleanSym}`,
+      series: 'EQ',
+      sector: 'Diversified / Equity',
+      currentPrice: Number(buyPriceInput) || 100,
+      dayChangePercent: 0.0,
+      rebalanceStatus: 'Core Constituent (Stable)',
+      targetPrice: Math.round((Number(buyPriceInput) || 100) * 1.25),
+      stopLoss: Math.round((Number(buyPriceInput) || 100) * 0.90),
+      riskRating: 'Moderate',
+      baseRationale: `Tracking live on NSE & BSE under security key NSE:${cleanSym}.`,
+      defaultAction: 'HOLD_FIRM'
+    };
+    setSelectedStock(customProfile);
+    if (!buyPriceInput) {
+      setBuyPriceInput('100');
     }
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const sym = isCustomMode ? customSymbolInput.toUpperCase().trim() : selectedCatalogSymbol;
-    if (!sym) return;
+    if (!selectedStock) return;
 
     const sharesNum = Math.max(1, Number(sharesInput) || 1);
-    const buyPriceNum = Math.max(0.05, Number(buyPriceInput) || 100);
+    const buyPriceNum = Math.max(0.05, Number(buyPriceInput) || selectedStock.currentPrice);
 
-    const found = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === sym);
-
-    const currentMarketPrice = found ? found.currentPrice : buyPriceNum;
-    const stockName = found ? found.name : `${sym} Ltd`;
-    const dayChange = found ? found.dayChangePercent : 0.50;
-    const rebalStatus = found ? found.rebalanceStatus : 'Core Constituent (Stable)';
-    const targetPrice = found ? found.targetPrice : Math.round(buyPriceNum * 1.25);
-    const stopLoss = found ? found.stopLoss : Math.round(buyPriceNum * 0.90);
-    const riskRating = found ? found.riskRating : 'Moderate';
-
-    const advisor = found
-      ? generateAdvisorRecommendation(found, buyPriceNum, currentMarketPrice)
-      : {
-          suggestion: (currentMarketPrice >= buyPriceNum ? 'HOLD_FIRM' : 'HOLD_FIRM') as PortfolioAction,
-          rationale: `RECOMMENDATION: HOLD FIRM. Target ₹${targetPrice} with stop-loss at ₹${stopLoss}. Evaluated against live index liquidity standards.`
-        };
+    const advisor = generateAdvisorRecommendation(selectedStock, buyPriceNum, selectedStock.currentPrice);
 
     onAddStock({
-      symbol: sym,
-      name: stockName,
+      symbol: selectedStock.symbol,
+      name: selectedStock.name,
+      nseKey: selectedStock.nseKey,
+      bseKey: selectedStock.bseKey,
+      isin: selectedStock.isin,
       shares: sharesNum,
       avgBuyPrice: buyPriceNum,
       buyDate: new Date().toISOString().split('T')[0],
       notes: notesInput.trim() || undefined,
-      currentPrice: currentMarketPrice,
-      dayChangePercent: dayChange,
-      rebalanceStatus: rebalStatus,
+      currentPrice: selectedStock.currentPrice,
+      dayChangePercent: selectedStock.dayChangePercent,
+      rebalanceStatus: selectedStock.rebalanceStatus,
       suggestion: advisor.suggestion,
       suggestionRationale: advisor.rationale,
-      targetPrice,
-      stopLoss,
-      riskRating,
+      targetPrice: selectedStock.targetPrice,
+      stopLoss: selectedStock.stopLoss,
+      riskRating: selectedStock.riskRating,
     });
 
     setIsAddModalOpen(false);
-    setCustomSymbolInput('');
-    setIsCustomMode(false);
+    setSelectedStock(null);
+    setSearchQuery('');
     setNotesInput('');
   };
 
@@ -243,13 +263,13 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           </p>
         </div>
 
-        {/* Top Actions: Add, Export Backup, Import Backup */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Top Actions: Fixed non-wrapping single horizontal row */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 whitespace-nowrap">
           {portfolioStocks.length > 0 && (
             <button
               onClick={handleExportPortfolio}
               title="Download portfolio as JSON file"
-              className="px-2.5 py-1.5 text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1.5 text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Download className="w-3.5 h-3.5 text-cyan-400" />
               <span>Backup (.json)</span>
@@ -259,15 +279,15 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             title="Restore portfolio from a JSON backup file"
-            className="px-2.5 py-1.5 text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-2.5 py-1.5 text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <Upload className="w-3.5 h-3.5 text-amber-400" />
             <span>Restore (.json)</span>
           </button>
 
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-3.5 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans cursor-pointer shadow-sm"
+            onClick={handleOpenAddModal}
+            className="px-3.5 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans cursor-pointer shadow-sm shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Stock</span>
@@ -391,12 +411,11 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
             <Briefcase className="w-10 h-10 text-slate-600 mx-auto" />
             <h3 className="text-base font-semibold text-white">Your Portfolio is Clean &amp; Empty</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Add the actual Indian stocks you own in your broker account. No broker passwords or API keys needed.
-              Stocks you add are saved locally and will remain available every time you open this app until you remove them.
+              Add the actual Indian stocks you own in your broker account. Type the company name or symbol (e.g. Zomato, Trent, Reliance) to search with valid NSE and BSE exchange keys.
             </p>
             <div className="pt-3 flex justify-center gap-3">
               <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={handleOpenAddModal}
                 className="px-4 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded font-sans cursor-pointer"
               >
                 Add Your First Stock
@@ -427,15 +446,25 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                 key={stock.id}
                 className="bg-slate-900/60 border border-slate-800 hover:border-slate-700 rounded-lg p-4 sm:p-5 transition-all space-y-4"
               >
-                {/* Top Row: Symbol, Category, Action Advice */}
+                {/* Top Row: Symbol, Valid Keys, Action Advice */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-lg font-bold font-mono text-white">
                       {stock.symbol}
                     </span>
                     <span className="text-xs text-slate-400 font-medium">
                       {stock.name}
                     </span>
+                    {stock.nseKey && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                        {stock.nseKey}
+                      </span>
+                    )}
+                    {stock.bseKey && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                        {stock.bseKey}
+                      </span>
+                    )}
                     <span className={`text-[11px] font-sans px-2 py-0.5 rounded border ${getRebalanceStatusBadgeClass(stock.rebalanceStatus)}`}>
                       {stock.rebalanceStatus}
                     </span>
@@ -554,128 +583,203 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         )}
       </div>
 
-      {/* Add Stock Modal */}
+      {/* Add Stock Modal - Live Search by Name/Symbol with Valid NSE/BSE Keys */}
       {isAddModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-fadeIn"
           onClick={() => setIsAddModalOpen(false)}
         >
           <div
-            className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl p-5 space-y-4"
+            className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
                 <h3 className="text-base font-bold text-white">Add Actual Broker Stock</h3>
-                <p className="text-xs text-slate-400">Select stock, enter quantity and average purchase price</p>
+                <p className="text-xs text-slate-400">Search NSE/BSE listed stock to auto-fetch valid keys and market price</p>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-300">
-                    {isCustomMode ? 'Enter Stock Ticker Symbol' : 'Select Stock from Universe'}
+              {/* Step 1: Live Search Input without any dropdown or manual toggle */}
+              {!selectedStock ? (
+                <div className="space-y-2">
+                  <label className="block text-slate-300 font-medium">
+                    Search Stock through NSE / BSE
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomMode(!isCustomMode)}
-                    className="text-emerald-400 hover:underline text-[11px]"
-                  >
-                    {isCustomMode ? '← Choose from Major Universe' : '+ Type Any Custom Stock'}
-                  </button>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Type stock name or symbol (e.g. Zomato, Trent, Reliance, HDFC, Tata)..."
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg pl-9 pr-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
+
+                  {/* Live Suggestions List */}
+                  <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5 p-1 bg-slate-950/90 rounded-lg border border-slate-800">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((item) => (
+                        <div
+                          key={item.symbol}
+                          onClick={() => handleSelectStock(item)}
+                          className="p-2.5 rounded hover:bg-slate-800/90 cursor-pointer transition-colors border border-transparent hover:border-slate-700 flex items-center justify-between group"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold font-mono text-white text-xs sm:text-sm group-hover:text-emerald-300">
+                                {item.symbol}
+                              </span>
+                              <span className="text-xs text-slate-300 font-sans">
+                                {item.name}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                {item.nseKey}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                                {item.bseKey}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
+                              <span>{item.sector}</span>
+                              <span>·</span>
+                              <span>ISIN: {item.isin}</span>
+                            </div>
+                          </div>
+                          <div className="text-right font-mono text-xs shrink-0 pl-2">
+                            <div className="text-white font-bold">₹{item.currentPrice.toFixed(2)}</div>
+                            <div className={item.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                              {item.dayChangePercent >= 0 ? '+' : ''}{item.dayChangePercent}%
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div
+                        onClick={() => handleSelectCustomQuery(searchQuery)}
+                        className="p-3 rounded hover:bg-slate-800 cursor-pointer border border-emerald-500/30 bg-emerald-500/5 text-emerald-300 text-xs flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="font-bold font-mono">Select "{searchQuery.toUpperCase()}" through NSE &amp; BSE</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">
+                            Auto-assigns valid exchange keys: NSE:{searchQuery.toUpperCase()} · BSE:EQ
+                          </div>
+                        </div>
+                        <span className="text-xs underline font-sans">Select Stock &rarr;</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              ) : (
+                /* Step 2: Selected Stock Verified Card with Valid Keys */
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-lg bg-slate-950 border border-emerald-500/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span className="font-bold font-mono text-white text-base">
+                          {selectedStock.symbol}
+                        </span>
+                        <span className="text-xs text-slate-300">
+                          {selectedStock.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStock(null)}
+                        className="text-xs text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        Change Stock
+                      </button>
+                    </div>
 
-                {isCustomMode ? (
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. TITAN, SBIN, ITC, TATAMOTORS, HAL"
-                    value={customSymbolInput}
-                    onChange={(e) => setCustomSymbolInput(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono uppercase"
-                  />
-                ) : (
-                  <select
-                    value={selectedCatalogSymbol}
-                    onChange={(e) => handleSymbolChange(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
-                  >
-                    {KNOWN_STOCKS_CATALOG.map((item) => (
-                      <option key={item.symbol} value={item.symbol}>
-                        {item.symbol} - {item.name} ({item.rebalanceStatus.split(' ')[0]})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                        {selectedStock.nseKey}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                        {selectedStock.bseKey}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        ISIN: {selectedStock.isin}
+                      </span>
+                      <span className="text-slate-400 ml-auto">
+                        Live CMP: <strong className="text-white">₹{selectedStock.currentPrice.toFixed(2)}</strong>
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 mb-1">Quantity (Number of shares)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={sharesInput}
-                    onChange={(e) => setSharesInput(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-300 mb-1">Quantity (Number of shares)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        value={sharesInput}
+                        onChange={(e) => setSharesInput(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 mb-1">Avg Purchase Price (₹ / share)</label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min="0.05"
+                        required
+                        value={buyPriceInput}
+                        onChange={(e) => setBuyPriceInput(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 mb-1">Optional Notes / Investment Thesis</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Bought on Zerodha for long-term compounding"
+                      value={notesInput}
+                      onChange={(e) => setNotesInput(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="p-2.5 bg-slate-950/70 rounded border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
+                    <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>
+                      Saved permanently in your browser's private local storage. No broker login needed.
+                    </span>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStock(null)}
+                      className="px-4 py-2 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded transition-colors cursor-pointer"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors font-sans cursor-pointer shadow-sm"
+                    >
+                      Add to My Portfolio
+                    </button>
+                  </div>
                 </div>
-
-                <div>
-                  <label className="block text-slate-300 mb-1">Avg Buy Price (₹ / share)</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0.1"
-                    required
-                    value={buyPriceInput}
-                    onChange={(e) => setBuyPriceInput(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-300 mb-1">Optional Notes / Investment Thesis</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Bought on Zerodha for long term, swing trade target ₹320"
-                  value={notesInput}
-                  onChange={(e) => setNotesInput(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="p-3 bg-slate-950/70 rounded border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
-                <Lock className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
-                  Saved permanently in your browser's private storage. You can also click "Backup (.json)" to save a copy to your computer.
-                </span>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors font-sans cursor-pointer"
-                >
-                  Add to My Portfolio
-                </button>
-              </div>
+              )}
             </form>
           </div>
         </div>

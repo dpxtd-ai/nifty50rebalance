@@ -129,6 +129,9 @@ export interface UserPortfolioStock {
   id: string;
   symbol: string;
   name: string;
+  nseKey?: string; // e.g. "NSE:ZOMATO"
+  bseKey?: string; // e.g. "BSE:543320"
+  isin?: string;   // e.g. "INE758T01015"
   shares: number;
   avgBuyPrice: number;
   buyDate?: string;

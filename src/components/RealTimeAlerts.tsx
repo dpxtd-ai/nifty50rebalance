@@ -85,30 +85,30 @@ export const RealTimeAlerts: React.FC<RealTimeAlertsProps> = ({
           </p>
         </div>
 
-        {/* Top Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Top Controls - Single horizontal row */}
+        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
           {notificationPermission !== 'granted' && typeof Notification !== 'undefined' && (
             <button
               onClick={requestNotification}
-              className="px-3 py-1.5 text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded transition-colors"
+              className="px-2.5 sm:px-3 py-1.5 text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded transition-colors cursor-pointer shrink-0"
             >
-              Enable Browser Alerts
+              Browser Alerts
             </button>
           )}
 
           <button
             onClick={onMarkAllAsRead}
-            className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 rounded transition-colors"
+            className="px-2.5 sm:px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 rounded transition-colors cursor-pointer shrink-0"
           >
             Mark All Read
           </button>
 
           <button
             onClick={onTriggerSimulatedAlert}
-            className="px-3 py-1.5 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans"
+            className="px-2.5 sm:px-3 py-1.5 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 font-sans cursor-pointer shrink-0 shadow-sm"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Generate Live Announcement</span>
+            <span>Simulate Circular</span>
           </button>
         </div>
       </div>

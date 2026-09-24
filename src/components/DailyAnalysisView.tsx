@@ -42,15 +42,11 @@ export const DailyAnalysisView: React.FC<DailyAnalysisViewProps> = ({ onSelectSt
         </div>
 
         {/* Daily Run Action & Timestamp */}
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <div className="text-[11px] text-slate-400">Model Timestamp</div>
-            <div className="text-xs font-mono text-cyan-300">{lastCalculatedTime}</div>
-          </div>
+        <div className="flex items-center gap-3 shrink-0 whitespace-nowrap">
           <button
             onClick={handleRecalculate}
             disabled={isCalculating}
-            className="px-3.5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded transition-colors flex items-center gap-2 font-sans cursor-pointer disabled:opacity-50 shadow-sm"
+            className="px-3.5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded transition-colors flex items-center gap-2 font-sans cursor-pointer disabled:opacity-50 shadow-sm shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isCalculating ? 'animate-spin' : ''}`} />
             <span>Recalculate Intraday Run</span>

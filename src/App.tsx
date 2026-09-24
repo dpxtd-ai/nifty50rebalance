@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header.tsx';
 import { MetricOverview } from './components/MetricOverview.tsx';
 import { UpcomingInclusions } from './components/UpcomingInclusions.tsx';
@@ -270,20 +270,98 @@ export default function App() {
     }, 6000);
   };
 
-  // Filtered lists if search query is active
-  const filteredUpcoming = UPCOMING_INCLUSIONS.filter(
-    (s) =>
-      s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.sector.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtered lists across all menus when search query is active
+  const q = searchQuery.trim().toLowerCase();
 
-  const filteredExclusions = EXCLUSIONS_WATCHLIST.filter(
-    (s) =>
-      s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.sector.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUpcoming = useMemo(() => {
+    if (!q) return UPCOMING_INCLUSIONS;
+    return UPCOMING_INCLUSIONS.filter(
+      (s) =>
+        s.symbol.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.sector.toLowerCase().includes(q) ||
+        s.alphaRationale.toLowerCase().includes(q) ||
+        (s.tradeTiming && s.tradeTiming.actionHeadline.toLowerCase().includes(q))
+    );
+  }, [q]);
+
+  const filteredExclusions = useMemo(() => {
+    if (!q) return EXCLUSIONS_WATCHLIST;
+    return EXCLUSIONS_WATCHLIST.filter(
+      (s) =>
+        s.symbol.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.sector.toLowerCase().includes(q) ||
+        s.exclusionReason.toLowerCase().includes(q) ||
+        s.likelyReplacementSymbol.toLowerCase().includes(q)
+    );
+  }, [q]);
+
+  const filteredFoStocks = useMemo(() => {
+    if (!q) return foStocks;
+    return foStocks.filter(
+      (s) =>
+        s.symbol.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.sector.toLowerCase().includes(q) ||
+        s.timing.status.toLowerCase().includes(q) ||
+        s.timing.headline.toLowerCase().includes(q) ||
+        s.timing.actionPrompt.toLowerCase().includes(q) ||
+        s.oiTrend.toLowerCase().includes(q)
+    );
+  }, [foStocks, q]);
+
+  const filteredPortfolio = useMemo(() => {
+    if (!q) return portfolioStocks;
+    return portfolioStocks.filter(
+      (s) =>
+        s.symbol.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        (s.nseKey && s.nseKey.toLowerCase().includes(q)) ||
+        (s.bseKey && s.bseKey.toLowerCase().includes(q)) ||
+        (s.notes && s.notes.toLowerCase().includes(q)) ||
+        s.suggestion.toLowerCase().includes(q) ||
+        s.rebalanceStatus.toLowerCase().includes(q)
+    );
+  }, [portfolioStocks, q]);
+
+  const filteredDeletedArchive = useMemo(() => {
+    if (!q) return DELETED_STOCKS_ARCHIVE;
+    return DELETED_STOCKS_ARCHIVE.filter(
+      (s) =>
+        s.symbol.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.sector.toLowerCase().includes(q) ||
+        s.replacementSymbol.toLowerCase().includes(q) ||
+        s.circularRef.toLowerCase().includes(q)
+    );
+  }, [q]);
+
+  const filteredAlerts = useMemo(() => {
+    if (!q) return alerts;
+    return alerts.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.summary.toLowerCase().includes(q) ||
+        a.circularNumber.toLowerCase().includes(q) ||
+        (a.stocksImpacted?.inclusions && a.stocksImpacted.inclusions.some((s) => s.toLowerCase().includes(q))) ||
+        (a.stocksImpacted?.exclusions && a.stocksImpacted.exclusions.some((s) => s.toLowerCase().includes(q)))
+    );
+  }, [alerts, q]);
+
+  // Check how many matches exist on the current active tab
+  const currentTabMatchesCount =
+    activeTab === 'upcoming'
+      ? filteredUpcoming.length
+      : activeTab === 'exclusions'
+      ? filteredExclusions.length
+      : activeTab === 'fo_trends'
+      ? filteredFoStocks.length
+      : activeTab === 'portfolio'
+      ? filteredPortfolio.length
+      : activeTab === 'deleted'
+      ? filteredDeletedArchive.length
+      : filteredAlerts.length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-300">
@@ -328,37 +406,154 @@ export default function App() {
         {/* High Density Metric Overview */}
         <MetricOverview onSelectStock={handleSelectStockBySymbol} />
 
-        {/* Search & Quick Filter Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/40 p-3 rounded-lg border border-slate-800">
-          <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search Nifty 50 stocks (e.g. ZOMATO, TRENT, INDUSINDBK)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-md pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
-            />
+        {/* Global Menu-Wise Search & Quick Navigation Bar */}
+        <div className="mb-6 space-y-2">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+            <div className="relative w-full lg:w-96">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search across all menus (e.g. TRENT, ZOMATO, RELIANCE, HDFC)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-md pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Interactive Menu-Wise Match Badges with Click-to-Switch */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <button
+                onClick={() => setActiveTab('upcoming')}
+                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                  activeTab === 'upcoming'
+                    ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40'
+                    : 'text-slate-400 hover:text-emerald-300 bg-slate-900 border border-slate-800'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Inclusions:</span>
+                <strong className="font-mono text-white">{filteredUpcoming.length}</strong>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('exclusions')}
+                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                  activeTab === 'exclusions'
+                    ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40'
+                    : 'text-slate-400 hover:text-rose-300 bg-slate-900 border border-slate-800'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                <span>Exclusions:</span>
+                <strong className="font-mono text-white">{filteredExclusions.length}</strong>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('fo_trends')}
+                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                  activeTab === 'fo_trends'
+                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40'
+                    : 'text-slate-400 hover:text-amber-300 bg-slate-900 border border-slate-800'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span>F&amp;O:</span>
+                <strong className="font-mono text-white">{filteredFoStocks.length}</strong>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('portfolio')}
+                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                  activeTab === 'portfolio'
+                    ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
+                    : 'text-slate-400 hover:text-cyan-300 bg-slate-900 border border-slate-800'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                <span>My Portfolio:</span>
+                <strong className="font-mono text-white">{filteredPortfolio.length}</strong>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('deleted')}
+                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                  activeTab === 'deleted'
+                    ? 'bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/40'
+                    : 'text-slate-400 hover:text-indigo-300 bg-slate-900 border border-slate-800'
+                }`}
+              >
+                <span>Archive:</span>
+                <strong className="font-mono text-white">{filteredDeletedArchive.length}</strong>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('alerts')}
+                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                  activeTab === 'alerts'
+                    ? 'bg-violet-500/20 text-violet-300 font-bold border border-violet-500/40'
+                    : 'text-slate-400 hover:text-violet-300 bg-slate-900 border border-slate-800'
+                }`}
+              >
+                <span>Alerts:</span>
+                <strong className="font-mono text-white">{filteredAlerts.length}</strong>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-400 w-full sm:w-auto justify-between sm:justify-end">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Inclusions: <strong className="text-white font-mono">{filteredUpcoming.length}</strong>
-            </span>
-            <span aria-hidden="true" className="text-slate-700">·</span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-400" />
-              Exclusions: <strong className="text-white font-mono">{filteredExclusions.length}</strong>
-            </span>
-            <span aria-hidden="true" className="text-slate-700">·</span>
-            <span className="font-mono text-[11px] text-cyan-400">
-              NSE Cut-off Cycle: Active
-            </span>
-          </div>
+          {/* Quick Cross-Tab Navigation Suggestion Banner if 0 matches on active tab */}
+          {q && currentTabMatchesCount === 0 && (
+            <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-lg text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-fadeIn">
+              <div>
+                <span>No results for "<strong>{searchQuery}</strong>" in the currently selected <strong>{activeTab.toUpperCase()}</strong> menu.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {filteredUpcoming.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab('upcoming')}
+                    className="underline text-emerald-300 hover:text-white font-medium cursor-pointer"
+                  >
+                    View Inclusions ({filteredUpcoming.length}) &rarr;
+                  </button>
+                )}
+                {filteredExclusions.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab('exclusions')}
+                    className="underline text-rose-300 hover:text-white font-medium cursor-pointer"
+                  >
+                    View Exclusions ({filteredExclusions.length}) &rarr;
+                  </button>
+                )}
+                {filteredFoStocks.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab('fo_trends')}
+                    className="underline text-amber-300 hover:text-white font-medium cursor-pointer"
+                  >
+                    View F&amp;O Signals ({filteredFoStocks.length}) &rarr;
+                  </button>
+                )}
+                {filteredPortfolio.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab('portfolio')}
+                    className="underline text-cyan-300 hover:text-white font-medium cursor-pointer"
+                  >
+                    View My Portfolio ({filteredPortfolio.length}) &rarr;
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Primary Tab Panels */}
+        {/* Primary Tab Panels with All Menu-Wise Filters Connected */}
         {activeTab === 'upcoming' && (
           <UpcomingInclusions
             stocks={filteredUpcoming}
@@ -375,7 +570,7 @@ export default function App() {
 
         {activeTab === 'fo_trends' && (
           <FOTrendsView
-            foStocks={foStocks}
+            foStocks={filteredFoStocks}
             onSelectStock={handleSelectStockBySymbol}
             onRefreshFOTicks={handleRefreshFOTicks}
             isRefreshing={isFoRefreshing}
@@ -388,7 +583,7 @@ export default function App() {
 
         {activeTab === 'portfolio' && (
           <MyPortfolioView
-            portfolioStocks={portfolioStocks}
+            portfolioStocks={filteredPortfolio}
             onAddStock={handleAddPortfolioStock}
             onRemoveStock={handleRemovePortfolioStock}
             onUpdateStock={handleUpdatePortfolioStock}
@@ -398,7 +593,7 @@ export default function App() {
         )}
 
         {activeTab === 'deleted' && (
-          <DeletedArchive stocks={DELETED_STOCKS_ARCHIVE} />
+          <DeletedArchive stocks={filteredDeletedArchive} />
         )}
 
         {activeTab === 'daily' && (
@@ -407,7 +602,7 @@ export default function App() {
 
         {activeTab === 'alerts' && (
           <RealTimeAlerts
-            alerts={alerts}
+            alerts={filteredAlerts}
             onMarkAsRead={handleMarkAsRead}
             onMarkAllAsRead={handleMarkAllAsRead}
             onTriggerSimulatedAlert={handleTriggerLiveAlert}
