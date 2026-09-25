@@ -1,6 +1,7 @@
 import React from 'react';
-import { Volume2, VolumeX, RefreshCw, Zap, Briefcase } from 'lucide-react';
+import { Volume2, VolumeX, RefreshCw, Zap, Briefcase, Radio, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { NavTab } from '../types/index.ts';
+import { useLiveMarket } from '../context/LiveMarketContext.tsx';
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -20,9 +21,10 @@ export const Header: React.FC<HeaderProps> = ({
   soundEnabled,
   onToggleSound,
   onTriggerLiveAlert,
-  lastUpdated,
   portfolioCount,
 }) => {
+  const { indices, lastSyncedTime, refreshMarketData, isLiveConnected } = useLiveMarket();
+
   return (
     <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
@@ -146,6 +148,69 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
+        {/* Real-Time Live Index Ticker Bar */}
+        <div className="py-1.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono overflow-x-auto scrollbar-none gap-4">
+          <div className="flex items-center gap-4 shrink-0">
+            {/* Nifty 50 */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold">NIFTY 50</span>
+              <span className="text-white font-bold tabular-nums">
+                {indices.nifty50.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={`flex items-center text-[10px] font-bold ${indices.nifty50.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {indices.nifty50.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {indices.nifty50.change >= 0 ? '+' : ''}{indices.nifty50.change.toFixed(2)}%
+              </span>
+            </div>
+
+            <span className="text-slate-700">|</span>
+
+            {/* SENSEX */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold">SENSEX</span>
+              <span className="text-white font-bold tabular-nums">
+                {indices.sensex.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={`flex items-center text-[10px] font-bold ${indices.sensex.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {indices.sensex.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {indices.sensex.change >= 0 ? '+' : ''}{indices.sensex.change.toFixed(2)}%
+              </span>
+            </div>
+
+            <span className="text-slate-700">|</span>
+
+            {/* NIFTY BANK */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-semibold">NIFTY BANK</span>
+              <span className="text-white font-bold tabular-nums">
+                {indices.niftyBank.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={`flex items-center text-[10px] font-bold ${indices.niftyBank.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {indices.niftyBank.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {indices.niftyBank.change >= 0 ? '+' : ''}{indices.niftyBank.change.toFixed(2)}%
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 ml-auto">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-emerald-400 font-medium">LIVE EXCHANGE FEED</span>
+            </div>
+            <span className="text-slate-500">Synced: {lastSyncedTime}</span>
+            <button
+              onClick={() => refreshMarketData()}
+              title="Refresh live market quotes"
+              className="text-slate-400 hover:text-emerald-300 p-0.5 rounded transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
         {/* Mobile Navigation Bar */}
         <div className="flex md:hidden overflow-x-auto py-2 gap-2 border-t border-slate-800/80 scrollbar-none text-xs">
           <button
@@ -204,7 +269,10 @@ export const Header: React.FC<HeaderProps> = ({
               activeTab === 'alerts' ? 'bg-violet-500/10 text-violet-400 border border-violet-500/30 font-medium' : 'text-slate-400'
             }`}
           >
-            Alerts {unreadAlertsCount > 0 ? `(${unreadAlertsCount})` : ''}
+            <span>Alerts</span>
+            {unreadAlertsCount > 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block" />
+            )}
           </button>
         </div>
       </div>

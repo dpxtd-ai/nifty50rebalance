@@ -68,20 +68,28 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-sync real-time quotes on initial mount for any legacy or mock prices (e.g. Cochin Shipyard at ₹100)
+  // Auto-sync real-time quotes on mount for all holdings (including NALCO, Cochin Shipyard, etc.)
   useEffect(() => {
     portfolioStocks.forEach((stock) => {
       const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
-      if (
-        quote &&
-        (stock.currentPrice <= 100 ||
-          stock.symbol.toUpperCase().includes('COCHIN') ||
-          stock.name.toUpperCase().includes('COCHIN') ||
-          stock.currentPrice !== quote.currentPrice)
-      ) {
+      if (quote && (stock.currentPrice !== quote.currentPrice || stock.dayChangePercent !== quote.dayChangePercent)) {
         onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
       }
     });
+
+    // Also fetch live API quotes in background
+    (async () => {
+      for (const stock of portfolioStocks) {
+        try {
+          const live = await fetchRealtimeQuote(stock.symbol || stock.name);
+          if (live && live.currentPrice > 0 && Math.abs(live.currentPrice - stock.currentPrice) > 0.05) {
+            onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, live.currentPrice);
+          }
+        } catch {
+          // keep calibrated quote
+        }
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

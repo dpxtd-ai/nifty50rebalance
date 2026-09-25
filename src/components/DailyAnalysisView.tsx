@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DAILY_ANALYSIS_HISTORY, DAILY_SNAPSHOT, UPCOMING_INCLUSIONS, EXCLUSIONS_WATCHLIST } from '../data/nifty50Data.ts';
+import { useLiveMarket } from '../context/LiveMarketContext.tsx';
 import { Calendar, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 interface DailyAnalysisViewProps {
@@ -7,18 +8,18 @@ interface DailyAnalysisViewProps {
 }
 
 export const DailyAnalysisView: React.FC<DailyAnalysisViewProps> = ({ onSelectStock }) => {
+  const { refreshMarketData, lastSyncedTime } = useLiveMarket();
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
-  const [lastCalculatedTime, setLastCalculatedTime] = useState<string>('09:18 IST (Daily Scheduled Run)');
+  const [lastCalculatedTime, setLastCalculatedTime] = useState<string>('Live Session (Daily Scheduled Run)');
 
-  const handleRecalculate = () => {
+  const handleRecalculate = async () => {
     setIsCalculating(true);
-    setTimeout(() => {
-      setIsCalculating(false);
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setLastCalculatedTime(`${timeString} IST (Intraday Live Recalculation)`);
-    }, 600);
+    await refreshMarketData();
+    setIsCalculating(false);
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLastCalculatedTime(`${timeString} IST (Intraday Live Recalculation)`);
   };
 
   const currentRun = DAILY_ANALYSIS_HISTORY[selectedDayIndex];

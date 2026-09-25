@@ -7,15 +7,15 @@ import {
 } from '../types/index.ts';
 
 export const DAILY_SNAPSHOT: DailyRebalanceSnapshot = {
-  date: '24 September 2026',
-  nifty50IndexValue: 26184.50,
-  nifty50DailyChangePercent: 0.42,
-  cutoffRank50FreeFloatCr: 38450, // Free float of the 50th constituent in Nifty 50
-  minimumInclusionThresholdCr: 57675, // 1.5x minimum free float required for inclusion
+  date: '25 September 2026',
+  nifty50IndexValue: 23046.25,
+  nifty50DailyChangePercent: -1.71,
+  cutoffRank50FreeFloatCr: 36050, // Free float of the 50th constituent in Nifty 50 (IndusInd Bank)
+  minimumInclusionThresholdCr: 54075, // 1.5x minimum free float required for inclusion
   totalProjectedInflowCr: 9840,
   totalProjectedOutflowCr: 7920,
   highestAlphaStock: 'TRENT',
-  highestProbabilityStock: 'ZOMATO',
+  highestProbabilityStock: 'ETERNAL',
   immediate15DayExclusionCandidate: 'INDUSINDBK'
 };
 

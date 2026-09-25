@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { UpcomingInclusionStock, ExclusionDelistingStock } from '../types/index.ts';
 import { X, CheckCircle2, XCircle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Layers, FileText } from 'lucide-react';
 import { DAILY_SNAPSHOT } from '../data/nifty50Data.ts';
+import { useLiveMarket } from '../context/LiveMarketContext.tsx';
 
 interface StockDetailModalProps {
   stock: UpcomingInclusionStock | ExclusionDelistingStock | null;
@@ -9,6 +10,8 @@ interface StockDetailModalProps {
 }
 
 export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClose }) => {
+  const { getLiveQuote } = useLiveMarket();
+
   // Prevent background scrolling when modal is open and handle escape key
   useEffect(() => {
     if (!stock) return;
@@ -99,15 +102,25 @@ export const StockDetailModal: React.FC<StockDetailModalProps> = ({ stock, onClo
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-5 text-xs text-slate-300">
           {/* Key Quantitative Stat Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
-              <div className="text-slate-400 text-[11px]">Price &amp; 1D Move</div>
-              <div className="text-base font-bold font-mono text-white mt-1 tabular-nums">
-                ₹{stock.metrics.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </div>
-              <div className={`text-[11px] font-mono mt-0.5 ${stock.metrics.dailyChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {stock.metrics.dailyChangePercent >= 0 ? '+' : ''}{stock.metrics.dailyChangePercent}%
-              </div>
-            </div>
+            {(() => {
+              const live = getLiveQuote(stock.symbol);
+              const cmp = live.currentPrice > 0 ? live.currentPrice : stock.metrics.currentPrice;
+              const chg = live.dayChangePercent;
+              return (
+                <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
+                  <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                    <span>Price &amp; 1D Move</span>
+                    <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded">LIVE</span>
+                  </div>
+                  <div className="text-base font-bold font-mono text-white mt-1 tabular-nums">
+                    ₹{cmp.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[11px] font-mono mt-0.5 ${chg >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {chg >= 0 ? '+' : ''}{chg.toFixed(2)}%
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
               <div className="text-slate-400 text-[11px]">Excess Alpha (1Y)</div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FOTrendStock, FOSignalType, TimingStatus } from '../types/index.ts';
+import { useLiveMarket } from '../context/LiveMarketContext.tsx';
 import {
   TrendingUp,
   TrendingDown,
@@ -40,14 +41,29 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
   autoRefreshEnabled,
   onToggleAutoRefresh,
 }) => {
+  const { getLiveQuote } = useLiveMarket();
   const [filterTiming, setFilterTiming] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const buyNowCount = foStocks.filter((s) => s.timing.status === 'BUY_NOW').length;
-  const sellNowCount = foStocks.filter((s) => s.timing.status === 'SELL_SHORT_NOW').length;
-  const waitDipCount = foStocks.filter((s) => s.timing.status === 'WAIT_FOR_DIP').length;
+  // Dynamically update spot and futures prices from live quotes
+  const liveFOStocks = foStocks.map((stock) => {
+    const live = getLiveQuote(stock.symbol);
+    const spot = live.currentPrice > 0 ? live.currentPrice : stock.spotPrice;
+    const change = live.dayChangePercent;
+    const future = Number((spot + stock.basis).toFixed(2));
+    return {
+      ...stock,
+      spotPrice: spot,
+      futurePrice: future,
+      changePercent: change,
+    };
+  });
 
-  const filteredStocks = foStocks.filter((stock) => {
+  const buyNowCount = liveFOStocks.filter((s) => s.timing.status === 'BUY_NOW').length;
+  const sellNowCount = liveFOStocks.filter((s) => s.timing.status === 'SELL_SHORT_NOW').length;
+  const waitDipCount = liveFOStocks.filter((s) => s.timing.status === 'WAIT_FOR_DIP').length;
+
+  const filteredStocks = liveFOStocks.filter((stock) => {
     if (filterTiming === 'buy_now' && stock.timing.status !== 'BUY_NOW') return false;
     if (filterTiming === 'sell_now' && stock.timing.status !== 'SELL_SHORT_NOW') return false;
     if (filterTiming === 'wait_dip' && stock.timing.status !== 'WAIT_FOR_DIP') return false;
@@ -359,12 +375,15 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
             {/* Price, Basis & Technical Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
               <div className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80">
-                <div className="text-slate-400 text-[11px]">Spot Price</div>
+                <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                  <span>Spot Price</span>
+                  <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded">LIVE</span>
+                </div>
                 <div className="text-sm font-bold font-mono text-white mt-0.5 tabular-nums">
-                  ₹{stock.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹{stock.spotPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className={`text-[10px] font-mono ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent}%
+                  {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
                 </div>
               </div>
 

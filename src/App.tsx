@@ -28,11 +28,13 @@ import {
   resolveRealtimeMarketQuote
 } from './data/portfolioPresets.ts';
 import { fetchBatchRealtimeQuotes } from './services/marketDataService.ts';
+import { LiveMarketProvider, useLiveMarket } from './context/LiveMarketContext.tsx';
 import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock, UserPortfolioStock } from './types/index.ts';
 import { playAlertChime } from './utils/audio.ts';
 import { Search, AlertCircle, Info, BellRing } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
+  const { indices, lastSyncedTime, refreshMarketData, quotes } = useLiveMarket();
   const [activeTab, setActiveTab] = useState<NavTab>('upcoming');
   const [alerts, setAlerts] = useState<RebalanceAlert[]>(OFFICIAL_REBALANCE_ALERTS);
   const [foStocks, setFoStocks] = useState<FOTrendStock[]>(FO_NIFTY50_TRENDS);
@@ -43,7 +45,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [selectedStock, setSelectedStock] = useState<UpcomingInclusionStock | ExclusionDelistingStock | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [lastUpdated, setLastUpdated] = useState<string>('24 Sep 2026, 09:18 IST');
+  const [lastUpdated, setLastUpdated] = useState<string>('25 Sep 2026, Live IST');
   const [bannerAlert, setBannerAlert] = useState<string | null>(null);
 
   // Portfolio local storage initialization - Auto-sync live market quotes for true valuation
@@ -53,10 +55,10 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Auto-sync real-time market quotes so holdings like COCHIN SHIPYARD never have stale 100 CMP
+          // Auto-sync real-time market quotes so holdings like NALCO or COCHIN SHIPYARD never have stale CMPs
           return parsed.map((stock: UserPortfolioStock) => {
             const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
-            if (quote && (stock.currentPrice === 100 || stock.symbol.includes('COCHIN') || stock.name.includes('COCHIN'))) {
+            if (quote) {
               const advisor = generateAdvisorRecommendation(quote, stock.avgBuyPrice, quote.currentPrice);
               return {
                 ...stock,
@@ -70,6 +72,7 @@ export default function App() {
                 rebalanceStatus: quote.rebalanceStatus,
                 targetPrice: quote.targetPrice,
                 stopLoss: quote.stopLoss,
+                riskRating: quote.riskRating,
                 suggestion: advisor.suggestion,
                 suggestionRationale: advisor.rationale,
               };
@@ -762,5 +765,13 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <LiveMarketProvider>
+      <AppContent />
+    </LiveMarketProvider>
   );
 }

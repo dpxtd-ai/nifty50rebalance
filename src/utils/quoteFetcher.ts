@@ -5,6 +5,19 @@
 export function mapIndianSymbolToYahooTicker(rawSymbol: string): string[] {
   const s = rawSymbol.trim().toUpperCase().replace(/\s+/g, '');
 
+  if (s === 'NIFTY' || s === 'NIFTY50' || s === 'NIFTY_50' || s === '^NSEI' || s.includes('NIFTY50INDEX')) {
+    return ['^NSEI'];
+  }
+  if (s === 'SENSEX' || s === '^BSESN' || s.includes('BSE30')) {
+    return ['^BSESN'];
+  }
+  if (s === 'BANKNIFTY' || s === 'NIFTYBANK' || s === '^NSEBANK') {
+    return ['^NSEBANK'];
+  }
+
+  if (s === 'NALCO' || s === 'NATIONALUM' || s.includes('ALUMIN')) {
+    return ['NATIONALUM.NS', 'NATIONALUM.BO'];
+  }
   if (s === 'COCHINSHIP' || s.includes('COCHIN') || s.includes('SHIPYARD')) {
     return ['COCHINSHIP.NS', 'COCHINSHIP.BO'];
   }
@@ -22,9 +35,6 @@ export function mapIndianSymbolToYahooTicker(rawSymbol: string): string[] {
   }
   if (s === 'BEL' || s.includes('BHARATELECTRONIC')) {
     return ['BEL.NS', 'BEL.BO'];
-  }
-  if (s === 'NATIONALUM' || s.includes('ALUMIN')) {
-    return ['NATIONALUM.NS', 'NATIONALUM.BO'];
   }
   if (s === 'JIOFIN') {
     return ['JIOFIN.NS', 'JIOFIN.BO'];
@@ -61,6 +71,36 @@ export function mapIndianSymbolToYahooTicker(rawSymbol: string): string[] {
   }
   if (s === 'BSE') {
     return ['BSE.NS', 'BSE.BO'];
+  }
+  if (s === 'HAL') {
+    return ['HAL.NS', 'HAL.BO'];
+  }
+  if (s === 'BDL') {
+    return ['BDL.NS', 'BDL.BO'];
+  }
+  if (s === 'RELIANCE') {
+    return ['RELIANCE.NS', 'RELIANCE.BO'];
+  }
+  if (s === 'HDFCBANK') {
+    return ['HDFCBANK.NS', 'HDFCBANK.BO'];
+  }
+  if (s === 'ICICIBANK') {
+    return ['ICICIBANK.NS', 'ICICIBANK.BO'];
+  }
+  if (s === 'SBIN') {
+    return ['SBIN.NS', 'SBIN.BO'];
+  }
+  if (s === 'TCS') {
+    return ['TCS.NS', 'TCS.BO'];
+  }
+  if (s === 'INFY') {
+    return ['INFY.NS', 'INFY.BO'];
+  }
+  if (s === 'ITC') {
+    return ['ITC.NS', 'ITC.BO'];
+  }
+  if (s === 'BHARTIARTL') {
+    return ['BHARTIARTL.NS', 'BHARTIARTL.BO'];
   }
 
   return [`${s}.NS`, `${s}.BO`];

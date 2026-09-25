@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UpcomingInclusionStock, InclusionTimingAction } from '../types/index.ts';
-import { ArrowUpRight, TrendingUp, CheckCircle2, ChevronRight, SlidersHorizontal, Target, Clock, ShieldAlert, Zap } from 'lucide-react';
+import { useLiveMarket } from '../context/LiveMarketContext.tsx';
+import { ArrowUpRight, TrendingUp, CheckCircle2, ChevronRight, SlidersHorizontal, Target, Clock, ShieldAlert, Zap, Radio } from 'lucide-react';
 
 interface UpcomingInclusionsProps {
   stocks: UpcomingInclusionStock[];
@@ -8,13 +9,17 @@ interface UpcomingInclusionsProps {
 }
 
 export const UpcomingInclusions: React.FC<UpcomingInclusionsProps> = ({ stocks, onSelectStock }) => {
+  const { computeDynamicInclusion } = useLiveMarket();
   const [minAlpha, setMinAlpha] = useState<number>(20);
   const [minProbability, setMinProbability] = useState<number>(75);
   const [sortBy, setSortBy] = useState<'alpha' | 'probability' | 'inflow' | 'freeFloat'>('probability');
   const [filterAction, setFilterAction] = useState<string>('all');
 
+  // Compute live real-time values for each stock dynamically
+  const liveDynamicStocks = stocks.map((s) => computeDynamicInclusion(s));
+
   // Filter only stocks that meet high alpha and high growth probability requirements
-  const filteredStocks = stocks
+  const filteredStocks = liveDynamicStocks
     .filter((stock) => {
       if (stock.metrics.alphaPercent < minAlpha || stock.metrics.growthProbability < minProbability) {
         return false;
@@ -248,12 +253,15 @@ export const UpcomingInclusions: React.FC<UpcomingInclusionsProps> = ({ stocks, 
               {/* Row 3: Core Quant Numbers Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-xs">
                 <div className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80">
-                  <div className="text-slate-400 text-[11px]">Current Price</div>
-                  <div className="text-sm font-bold font-mono text-white mt-0.5 tabular-nums">
-                    ₹{stock.metrics.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  <div className="text-slate-400 text-[11px] flex items-center justify-between">
+                    <span>Current Price</span>
+                    <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded">LIVE</span>
                   </div>
-                  <div className="text-[10px] text-emerald-400 font-mono">
-                    +{stock.metrics.dailyChangePercent}% today
+                  <div className="text-sm font-bold font-mono text-white mt-0.5 tabular-nums">
+                    ₹{stock.metrics.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[10px] font-mono ${stock.metrics.dailyChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stock.metrics.dailyChangePercent >= 0 ? '+' : ''}{stock.metrics.dailyChangePercent.toFixed(2)}% today
                   </div>
                 </div>
 

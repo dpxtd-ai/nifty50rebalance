@@ -581,6 +581,23 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     defaultAction: 'HOLD_FIRM'
   },
   {
+    symbol: 'NALCO',
+    name: 'National Aluminium Co Ltd (NALCO)',
+    nseKey: 'NSE:NATIONALUM',
+    bseKey: 'BSE:532234',
+    isin: 'INE139A01034',
+    series: 'EQ',
+    sector: 'Metals & Mining',
+    currentPrice: 357.60,
+    dayChangePercent: -0.22,
+    rebalanceStatus: 'High Alpha Contender',
+    targetPrice: 395.0,
+    stopLoss: 325.0,
+    riskRating: 'Moderate',
+    baseRationale: 'Integrated bauxite-alumina-aluminium producer benefiting from strong global commodity pricing.',
+    defaultAction: 'ACCUMULATE'
+  },
+  {
     symbol: 'NATIONALUM',
     name: 'National Aluminium Co Ltd',
     nseKey: 'NSE:NATIONALUM',
@@ -588,8 +605,8 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE139A01034',
     series: 'EQ',
     sector: 'Metals & Mining',
-    currentPrice: 357.70,
-    dayChangePercent: -1.58,
+    currentPrice: 357.60,
+    dayChangePercent: -0.22,
     rebalanceStatus: 'High Alpha Contender',
     targetPrice: 395.0,
     stopLoss: 325.0,
@@ -761,8 +778,8 @@ export function resolveRealtimeMarketQuote(queryOrSymbol: string): KnownStockPro
     const b = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === 'BEL');
     if (b) return b;
   }
-  if (q.includes('NATIONALUM') || q.includes('ALUMIN')) {
-    const n = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === 'NATIONALUM');
+  if (q.includes('NATIONALUM') || q.includes('NALCO') || q.includes('ALUMIN')) {
+    const n = KNOWN_STOCKS_CATALOG.find((s) => s.symbol === 'NALCO' || s.symbol === 'NATIONALUM');
     if (n) return n;
   }
   if (q.includes('SUZLON')) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExclusionDelistingStock, RebalanceTimeline } from '../types/index.ts';
+import { useLiveMarket } from '../context/LiveMarketContext.tsx';
 import { AlertTriangle, TrendingDown, Clock, ShieldAlert, ChevronRight, ArrowDownRight, Filter } from 'lucide-react';
 
 interface ExclusionsWatchlistProps {
@@ -8,9 +9,13 @@ interface ExclusionsWatchlistProps {
 }
 
 export const ExclusionsWatchlist: React.FC<ExclusionsWatchlistProps> = ({ stocks, onSelectStock }) => {
+  const { computeDynamicExclusion } = useLiveMarket();
   const [selectedHorizon, setSelectedHorizon] = useState<RebalanceTimeline | 'all'>('all');
 
-  const filteredStocks = stocks.filter((stock) => {
+  // Compute live values dynamically
+  const liveDynamicStocks = stocks.map((s) => computeDynamicExclusion(s));
+
+  const filteredStocks = liveDynamicStocks.filter((stock) => {
     if (selectedHorizon === 'all') return true;
     return stock.timelineCategory === selectedHorizon;
   });
@@ -127,14 +132,15 @@ export const ExclusionsWatchlist: React.FC<ExclusionsWatchlistProps> = ({ stocks
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-400">
-                  <div>
+                  <div className="flex items-center gap-1.5">
                     <span>Price: </span>
                     <span className="text-white font-mono font-medium tabular-nums">
-                      ₹{stock.metrics.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{stock.metrics.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    <span className="text-rose-400 font-mono ml-1 tabular-nums">
-                      ({stock.metrics.dailyChangePercent}%)
+                    <span className={`font-mono tabular-nums ${stock.metrics.dailyChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      ({stock.metrics.dailyChangePercent >= 0 ? '+' : ''}{stock.metrics.dailyChangePercent.toFixed(2)}%)
                     </span>
+                    <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded">LIVE</span>
                   </div>
                   <span aria-hidden="true" className="text-slate-600">|</span>
                   <div>
