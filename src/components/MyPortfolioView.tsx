@@ -7,6 +7,7 @@ import {
   generateAdvisorRecommendation,
   KnownStockProfile
 } from '../data/portfolioPresets.ts';
+import { fetchRealtimeQuote } from '../services/marketDataService.ts';
 import {
   Briefcase,
   Plus,
@@ -169,26 +170,34 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   };
 
   // Validate and re-analyze all portfolio stocks with live real-time situation
-  const handleValidateAllWithRealtimeData = () => {
+  const handleValidateAllWithRealtimeData = async () => {
     setIsValidating(true);
-    setTimeout(() => {
-      portfolioStocks.forEach((stock) => {
-        const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
-        if (quote) {
+    try {
+      for (const stock of portfolioStocks) {
+        const quote = await fetchRealtimeQuote(stock.symbol || stock.name);
+        if (quote && quote.currentPrice > 0) {
           onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
         }
-      });
+      }
       if (onRefreshQuotes) {
         onRefreshQuotes();
       }
-      setIsValidating(false);
       setValidationSuccessMessage(
         `Validated ${portfolioStocks.length} stock${portfolioStocks.length === 1 ? '' : 's'} with live NSE/BSE market prices and real-time hold/sell ratings!`
       );
       setTimeout(() => {
         setValidationSuccessMessage(null);
       }, 5000);
-    }, 450);
+    } catch {
+      portfolioStocks.forEach((stock) => {
+        const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
+        if (quote) {
+          onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
+        }
+      });
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   // Export portfolio to a downloadable JSON file for lifetime backup
