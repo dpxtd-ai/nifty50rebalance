@@ -152,6 +152,23 @@ export type OITrendType = 'Long Buildup' | 'Short Covering' | 'Short Buildup' | 
 
 export type TimingStatus = 'BUY_NOW' | 'WAIT_FOR_DIP' | 'SELL_SHORT_NOW' | 'BOOK_PROFIT_NOW' | 'RANGE_WAIT';
 
+export interface FOOptionSetup {
+  type: 'CE' | 'PE' | 'HOLD_WAIT';
+  contractName: string; // e.g., "JIOFIN 230 CE" or "INDUSINDBK 900 PE"
+  strike: number;
+  expiryMonth: string; // e.g. "Current Monthly Expiry"
+  action: 'BUY_CE' | 'BUY_PE' | 'HOLD_CE' | 'HOLD_PE' | 'WAIT_DIP';
+  actionBadge: string; // "BUY CE (CALL OPTION)" or "BUY PE (PUT OPTION)"
+  entryPremium: number; // e.g., ₹7.40
+  targetPremium: number; // e.g., ₹14.00
+  stopLossPremium: number; // e.g., ₹4.20
+  underlyingTarget: number; // e.g. ₹245.00
+  underlyingStopLoss: number; // e.g. ₹220.00
+  marketMove: 'BULLISH_BREAKOUT' | 'BEARISH_BREAKDOWN' | 'SIDEWAYS_RANGE';
+  marketMoveReason: string; // Plain-English rationale for why this option is advised
+  recommendedTiming: string; // e.g. "Right Now (At CMP)" or "On retest of VWAP"
+}
+
 export interface FOTrendStock {
   id: string;
   symbol: string;
@@ -171,6 +188,7 @@ export interface FOTrendStock {
   rsi14: number;
   vwap: number;
   isAboveVwap: boolean;
+  optionSetup: FOOptionSetup;
   timing: {
     status: TimingStatus;
     headline: string; // e.g., "RIGHT TIME TO BUY NOW - Momentum Breakout Active"

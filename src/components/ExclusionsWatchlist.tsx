@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ExclusionDelistingStock, RebalanceTimeline } from '../types/index.ts';
 import { useLiveMarket } from '../context/LiveMarketContext.tsx';
-import { AlertTriangle, TrendingDown, Clock, ShieldAlert, ChevronRight, ArrowDownRight, Filter } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Clock, ShieldAlert, ChevronRight, ArrowDownRight, Filter, RefreshCw } from 'lucide-react';
 
 interface ExclusionsWatchlistProps {
   stocks: ExclusionDelistingStock[];
@@ -9,8 +9,18 @@ interface ExclusionsWatchlistProps {
 }
 
 export const ExclusionsWatchlist: React.FC<ExclusionsWatchlistProps> = ({ stocks, onSelectStock }) => {
-  const { computeDynamicExclusion } = useLiveMarket();
+  const { computeDynamicExclusion, refreshMarketData } = useLiveMarket();
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [selectedHorizon, setSelectedHorizon] = useState<RebalanceTimeline | 'all'>('all');
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshMarketData();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   // Compute live values dynamically
   const liveDynamicStocks = stocks.map((s) => computeDynamicExclusion(s));
@@ -101,6 +111,16 @@ export const ExclusionsWatchlist: React.FC<ExclusionsWatchlistProps> = ({ stocks
             }`}
           >
             Next 2 Months
+          </button>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh live exclusions market data and outflows"
+            className="px-2.5 py-1.5 text-xs font-semibold text-slate-900 bg-rose-400 hover:bg-rose-300 rounded transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ml-1"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>

@@ -24,6 +24,16 @@ export const Header: React.FC<HeaderProps> = ({
   portfolioCount,
 }) => {
   const { indices, lastSyncedTime, refreshMarketData, isLiveConnected } = useLiveMarket();
+  const [isRefreshingMarket, setIsRefreshingMarket] = React.useState<boolean>(false);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshingMarket(true);
+    try {
+      await refreshMarketData();
+    } finally {
+      setTimeout(() => setIsRefreshingMarket(false), 600);
+    }
+  };
 
   return (
     <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md sticky top-0 z-40">
@@ -131,6 +141,16 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Zone 3: Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshingMarket}
+              title="Refresh live real-time market data across all stocks, indices, F&O and portfolio"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors whitespace-nowrap flex items-center gap-1.5 font-sans shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingMarket ? 'animate-spin' : ''}`} />
+              <span>{isRefreshingMarket ? 'Updating...' : 'Refresh Market Data'}</span>
+            </button>
+
+            <button
               onClick={onToggleSound}
               title={soundEnabled ? 'Mute announcement audio alerts' : 'Enable audio alert chime'}
               className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-900 rounded border border-slate-800 transition-colors cursor-pointer"
@@ -140,9 +160,9 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={onTriggerLiveAlert}
-              className="px-2.5 sm:px-3 py-1.5 text-xs font-medium text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors whitespace-nowrap flex items-center gap-1.5 font-sans shadow-sm cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded transition-colors whitespace-nowrap flex items-center gap-1.5 font-sans cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
               <span>Simulate</span>
             </button>
           </div>
@@ -202,11 +222,12 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <span className="text-slate-500">Synced: {lastSyncedTime}</span>
             <button
-              onClick={() => refreshMarketData()}
+              onClick={handleManualRefresh}
               title="Refresh live market quotes"
-              className="text-slate-400 hover:text-emerald-300 p-0.5 rounded transition-colors"
+              disabled={isRefreshingMarket}
+              className="text-slate-400 hover:text-emerald-300 p-1 rounded hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <RefreshCw className="w-3 h-3" />
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingMarket ? 'animate-spin text-emerald-400' : ''}`} />
             </button>
           </div>
         </div>

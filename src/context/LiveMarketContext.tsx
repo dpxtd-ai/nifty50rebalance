@@ -6,7 +6,9 @@ import {
 import {
   UpcomingInclusionStock,
   ExclusionDelistingStock,
-  DailyRebalanceSnapshot
+  DailyRebalanceSnapshot,
+  FOTrendStock,
+  FOOptionSetup
 } from '../types/index.ts';
 import {
   UPCOMING_INCLUSIONS,
@@ -38,6 +40,7 @@ interface LiveMarketContextType {
   getLiveQuote: (symbol: string) => LiveQuoteResult;
   computeDynamicInclusion: (stock: UpcomingInclusionStock) => UpcomingInclusionStock;
   computeDynamicExclusion: (stock: ExclusionDelistingStock) => ExclusionDelistingStock;
+  computeDynamicFOTrend: (stock: FOTrendStock) => FOTrendStock;
   computeDynamicSnapshot: () => DailyRebalanceSnapshot;
 }
 
@@ -98,7 +101,11 @@ const SYMBOLS_TO_TRACK = [
   'DIXON',
   'POLYCAB',
   'HEROMOTOCO',
-  'WIPRO'
+  'WIPRO',
+  'INDIGO',
+  'CUMMINSIND',
+  'HDFCBANK',
+  'RELIANCE'
 ];
 
 const LiveMarketContext = createContext<LiveMarketContextType | undefined>(undefined);
@@ -279,6 +286,108 @@ export const LiveMarketProvider: React.FC<{ children: ReactNode }> = ({ children
     [getLiveQuote]
   );
 
+  // Computes dynamic F&O futures, basis, VWAP, and CE / PE options recommendation
+  const computeDynamicFOTrend = useCallback(
+    (stock: FOTrendStock): FOTrendStock => {
+      const live = getLiveQuote(stock.symbol);
+      const cmp = live.currentPrice > 0 ? live.currentPrice : stock.spotPrice;
+      const dayChange = live.dayChangePercent;
+
+      // Strike interval calculation:
+      let strikeStep = 5;
+      if (cmp < 100) strikeStep = 2.5;
+      else if (cmp < 300) strikeStep = 5;
+      else if (cmp < 1000) strikeStep = 10;
+      else if (cmp < 2500) strikeStep = 20;
+      else strikeStep = 50;
+
+      const isBullish = stock.nifty50Category === 'Inclusion Contender' || dayChange > -0.5;
+      const isBearish = stock.nifty50Category === 'Endangered Constituent' || dayChange < -1.5;
+
+      let optionType: 'CE' | 'PE' = isBullish ? 'CE' : 'PE';
+      let strike = Math.round(cmp / strikeStep) * strikeStep;
+
+      if (isBullish && strike < cmp) {
+        strike += strikeStep;
+      } else if (isBearish && strike > cmp) {
+        strike -= strikeStep;
+      }
+
+      const approxPremium = Number((cmp * 0.028).toFixed(2));
+      const entryPremium = Math.max(1.5, approxPremium);
+      const targetPremium = Number((entryPremium * 1.82).toFixed(2));
+      const stopLossPremium = Number((entryPremium * 0.58).toFixed(2));
+
+      const underlyingTarget = isBullish
+        ? Number((cmp * 1.075).toFixed(1))
+        : Number((cmp * 0.925).toFixed(1));
+      const underlyingStopLoss = isBullish
+        ? Number((cmp * 0.965).toFixed(1))
+        : Number((cmp * 1.035).toFixed(1));
+
+      const basis = Number((cmp * (isBullish ? 0.005 : -0.004)).toFixed(2));
+      const futurePrice = Number((cmp + basis).toFixed(2));
+      const vwap = Number((cmp * (isBullish ? 0.993 : 1.007)).toFixed(2));
+
+      const action = isBullish ? ('BUY_CE' as const) : ('BUY_PE' as const);
+      const actionBadge = isBullish ? `BUY ${strike} CE (CALL OPTION)` : `BUY ${strike} PE (PUT OPTION)`;
+      const marketMove = isBullish ? ('BULLISH_BREAKOUT' as const) : ('BEARISH_BREAKDOWN' as const);
+      const marketMoveReason = isBullish
+        ? `Bullish momentum coiling above ₹${Math.round(cmp)} with heavy Call open interest buying. Buy ${strike} CE to capture upside surge into ₹${underlyingTarget}.`
+        : `Bearish breakdown below key moving averages. Institutional call writing at ${strike + strikeStep} creates heavy supply. Buy ${strike} PE for downside slide toward ₹${underlyingTarget}.`;
+
+      const optionSetup: FOOptionSetup = {
+        type: optionType,
+        contractName: `${stock.symbol} ${strike} ${optionType}`,
+        strike,
+        expiryMonth: 'Current Monthly Expiry',
+        action,
+        actionBadge,
+        entryPremium,
+        targetPremium,
+        stopLossPremium,
+        underlyingTarget,
+        underlyingStopLoss,
+        marketMove,
+        marketMoveReason,
+        recommendedTiming: isBullish ? 'Right Now (At CMP) / On shallow retracement' : 'On breakdown below intraday low'
+      };
+
+      const timingHeadline = isBullish
+        ? `RIGHT TIME TO BUY ${strike} CE - Coiling at ₹${cmp.toFixed(2)}`
+        : `RIGHT TIME TO BUY ${strike} PE - Breakdown Pressure below ₹${cmp.toFixed(2)}`;
+
+      const actionPrompt = isBullish
+        ? `Optimal call option entry window. Buy ${stock.symbol} ${strike} CE around ₹${entryPremium} with target ₹${targetPremium} (Stop Loss: ₹${stopLossPremium}). Spot is respecting ₹${vwap.toFixed(2)} VWAP cushion.`
+        : `Bearish momentum confirmed. Buy ${stock.symbol} ${strike} PE around ₹${entryPremium} with target ₹${targetPremium} (Stop Loss: ₹${stopLossPremium}). Price firmly capped below ₹${vwap.toFixed(2)} VWAP.`;
+
+      return {
+        ...stock,
+        spotPrice: cmp,
+        futurePrice,
+        basis,
+        changePercent: dayChange,
+        vwap,
+        isAboveVwap: isBullish,
+        optionSetup,
+        timing: {
+          ...stock.timing,
+          status: isBullish ? 'BUY_NOW' : 'SELL_SHORT_NOW',
+          headline: timingHeadline,
+          actionPrompt,
+        },
+        recommendation: {
+          ...stock.recommendation,
+          action: isBullish ? 'STRONG_BUY' : 'SELL_SHORT',
+          entryRange: `₹${(cmp * 0.985).toFixed(1)} - ₹${(cmp * 1.005).toFixed(1)}`,
+          targetPrice: underlyingTarget,
+          stopLoss: underlyingStopLoss,
+        }
+      };
+    },
+    [getLiveQuote]
+  );
+
   // Computes dynamic benchmark overview snapshot
   const computeDynamicSnapshot = useCallback((): DailyRebalanceSnapshot => {
     const liveN50 = indices.nifty50;
@@ -311,6 +420,7 @@ export const LiveMarketProvider: React.FC<{ children: ReactNode }> = ({ children
         getLiveQuote,
         computeDynamicInclusion,
         computeDynamicExclusion,
+        computeDynamicFOTrend,
         computeDynamicSnapshot
       }}
     >

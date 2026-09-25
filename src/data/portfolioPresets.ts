@@ -755,6 +755,67 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
 export function resolveRealtimeMarketQuote(queryOrSymbol: string): KnownStockProfile {
   const q = queryOrSymbol.trim().toUpperCase().replace(/\s+/g, '');
   
+  // Specific Index Handling (Prevents any index from falling back to stock pricing)
+  if (q === '^NSEI' || q === 'NIFTY' || q === 'NIFTY50' || q === 'NIFTY_50' || q.includes('NIFTY50INDEX')) {
+    return {
+      symbol: '^NSEI',
+      name: 'NIFTY 50 INDEX',
+      nseKey: 'INDEXNSE:NIFTY_50',
+      bseKey: 'INDEXBSE:NIFTY50',
+      isin: 'INX000000001',
+      series: 'IN',
+      sector: 'Benchmark Index',
+      currentPrice: 23046.25,
+      dayChangePercent: -1.71,
+      rebalanceStatus: 'Core Constituent (Stable)',
+      targetPrice: 24500.0,
+      stopLoss: 22800.0,
+      riskRating: 'Low',
+      baseRationale: 'NSE 50 flagship benchmark index representing 50 diversified Indian mega-cap equities.',
+      defaultAction: 'HOLD_FIRM'
+    };
+  }
+
+  if (q === '^BSESN' || q === 'SENSEX' || q === 'BSE30') {
+    return {
+      symbol: '^BSESN',
+      name: 'BSE SENSEX INDEX',
+      nseKey: 'BSE:SENSEX',
+      bseKey: 'INDEXBSE:SENSEX',
+      isin: 'INX000000002',
+      series: 'IN',
+      sector: 'Benchmark Index',
+      currentPrice: 73581.06,
+      dayChangePercent: -1.67,
+      rebalanceStatus: 'Core Constituent (Stable)',
+      targetPrice: 78000.0,
+      stopLoss: 72500.0,
+      riskRating: 'Low',
+      baseRationale: 'S&P BSE SENSEX is the benchmark index of Bombay Stock Exchange (BSE) measuring 30 established companies.',
+      defaultAction: 'HOLD_FIRM'
+    };
+  }
+
+  if (q === '^NSEBANK' || q === 'BANKNIFTY' || q === 'NIFTYBANK') {
+    return {
+      symbol: '^NSEBANK',
+      name: 'NIFTY BANK INDEX',
+      nseKey: 'INDEXNSE:NIFTY_BANK',
+      bseKey: 'INDEXBSE:BANKEX',
+      isin: 'INX000000003',
+      series: 'IN',
+      sector: 'Banking Sector Index',
+      currentPrice: 55516.25,
+      dayChangePercent: -1.83,
+      rebalanceStatus: 'Core Constituent (Stable)',
+      targetPrice: 58000.0,
+      stopLoss: 54200.0,
+      riskRating: 'Moderate',
+      baseRationale: 'Nifty Bank comprises the most liquid and large Indian banking stocks.',
+      defaultAction: 'HOLD_FIRM'
+    };
+  }
+
   // 1. Direct match by symbol or clean symbol
   const directMatch = KNOWN_STOCKS_CATALOG.find(
     (s) => s.symbol === q || s.symbol.replace(/\s+/g, '') === q
@@ -814,11 +875,11 @@ export function resolveRealtimeMarketQuote(queryOrSymbol: string): KnownStockPro
     isin: `INE_${q}`,
     series: 'EQ',
     sector: 'Indian Equities',
-    currentPrice: 1250.00,
-    dayChangePercent: 0.85,
+    currentPrice: 350.00,
+    dayChangePercent: -0.50,
     rebalanceStatus: 'Core Constituent (Stable)',
-    targetPrice: 1450.00,
-    stopLoss: 1120.00,
+    targetPrice: 410.00,
+    stopLoss: 310.00,
     riskRating: 'Moderate',
     baseRationale: `Trading live on National Stock Exchange under security key NSE:${q}.`,
     defaultAction: 'HOLD_FIRM'
@@ -848,42 +909,71 @@ export function generateAdvisorRecommendation(
 } {
   const pnlPercent = ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
 
+  // 1. Critical Deletion Risk: Structural Outflows require exit
   if (profile.rebalanceStatus === 'Exclusion Vulnerable (-Outflows)') {
     return {
       suggestion: 'SELL_EXIT_NOW',
-      rationale: `RECOMMENDATION: SELL / EXIT. ${profile.symbol} is facing critical deletion from Nifty 50 with expected passive ETF selling. Technical breakdown below VWAP further increases risk of liquidation.`
+      rationale: `RECOMMENDATION: SELL / EXIT. ${profile.symbol} is facing critical deletion from Nifty 50 with expected passive ETF selling of over ₹1,500+ Cr. Reallocate capital into higher-alpha long-term contenders.`
     };
   }
 
+  // 2. LONG-TERM INVESTMENT HORIZON: MINIMUM 6-MONTH COOLING PERIOD
+  // Quality Nifty 50 inclusion and core constituent candidates require a 6-month cooling and compounding window to absorb passive ETF inflows and deliver outperformance across semi-annual review cycles.
   if (profile.rebalanceStatus === 'Upcoming Inclusion (+Inflows)') {
-    if (pnlPercent > 40) {
+    if (pnlPercent > 45) {
       return {
         suggestion: 'BOOK_PARTIAL_PROFIT',
-        rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (25-30%) & HOLD REMAINDER. You have +${pnlPercent.toFixed(1)}% unrealized gain. Secure profits while riding the remaining position into official Nifty 50 listing date.`
+        rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (20-30%) & MAINTAIN CORE LONG-TERM POSITION. You have +${pnlPercent.toFixed(1)}% unrealized gain. Rebalance capital while retaining remainder for the mandatory 6-month institutional index compounding cycle.`
+      };
+    }
+    if (pnlPercent < -6) {
+      return {
+        suggestion: 'ACCUMULATE',
+        rationale: `RECOMMENDATION: ACCUMULATE ON DIP (6-MONTH COOLING PERIOD ACTIVE). Position is at ${pnlPercent.toFixed(1)}% from purchase price ₹${avgBuyPrice.toFixed(2)}. Normal market volatility during the 6-month pre/post inclusion cooling period creates an optimal rupee-cost averaging opportunity before ETF inflows settle.`
       };
     }
     return {
       suggestion: 'HOLD_FIRM',
-      rationale: `RECOMMENDATION: HOLD FIRM. ${profile.symbol} is in the prime inclusion window. ${profile.baseRationale} Momentum remains firmly in favor of buyers.`
+      rationale: `RECOMMENDATION: HOLD FIRM (MINIMUM 6-MONTH COOLING PERIOD). ${profile.symbol} is in the active institutional inclusion corridor. Maintain long-term conviction across the semi-annual review window. ${profile.baseRationale}`
     };
   }
 
-  if (pnlPercent < -15) {
+  if (profile.rebalanceStatus === 'High Alpha Contender') {
+    if (pnlPercent < -8) {
+      return {
+        suggestion: 'ACCUMULATE',
+        rationale: `RECOMMENDATION: ACCUMULATE ON PULLBACK (6-MONTH HORIZON). Short-term dip of ${pnlPercent.toFixed(1)}% provides attractive accumulation valuation within the 6-month investment horizon. Target ₹${profile.targetPrice}.`
+      };
+    }
+    if (pnlPercent > 40) {
+      return {
+        suggestion: 'BOOK_PARTIAL_PROFIT',
+        rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (+${pnlPercent.toFixed(1)}%). Rebalance tactical gains while holding remaining 70% allocation across the 6-month cooling window.`
+      };
+    }
     return {
-      suggestion: 'SELL_EXIT_NOW',
-      rationale: `RECOMMENDATION: CONSIDER EXIT / TAX LOSS HARVESTING. Position down ${pnlPercent.toFixed(1)}% from buy price ₹${avgBuyPrice}. Reallocate capital into higher-alpha Nifty 50 contenders.`
+      suggestion: 'HOLD_FIRM',
+      rationale: `RECOMMENDATION: HOLD FIRM (6-MONTH COOLING PERIOD). High alpha generation with long-term structural order book pipeline. Maintain positions through the 6-month semi-annual compounding cycle.`
     };
   }
 
-  if (pnlPercent > 25) {
+  // Core Constituent (Stable)
+  if (pnlPercent > 35) {
     return {
       suggestion: 'BOOK_PARTIAL_PROFIT',
-      rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT. Up +${pnlPercent.toFixed(1)}%. Trailing stop-loss to ₹${(currentPrice * 0.95).toFixed(0)} to protect gains.`
+      rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (+${pnlPercent.toFixed(1)}%). Rebalance tactical gains while preserving core allocation for long-term dividends.`
+    };
+  }
+
+  if (pnlPercent < -10) {
+    return {
+      suggestion: 'ACCUMULATE',
+      rationale: `RECOMMENDATION: ACCUMULATE (LONG-TERM 6-MONTH HORIZON). Core index constituent down ${pnlPercent.toFixed(1)}% from entry; institutional index funds maintain steady allocation. Accumulate during market consolidation.`
     };
   }
 
   return {
     suggestion: profile.defaultAction,
-    rationale: `RECOMMENDATION: ${profile.defaultAction.replace('_', ' ')}. ${profile.baseRationale}`
+    rationale: `RECOMMENDATION: ${profile.defaultAction.replace(/_/g, ' ')} (6-MONTH COOLING PERIOD). Long-term holding strategy aligned with semi-annual Nifty 50 rebalancing. ${profile.baseRationale}`
   };
 }

@@ -41,27 +41,19 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
   autoRefreshEnabled,
   onToggleAutoRefresh,
 }) => {
-  const { getLiveQuote } = useLiveMarket();
+  const { computeDynamicFOTrend } = useLiveMarket();
   const [filterTiming, setFilterTiming] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterOptionType, setFilterOptionType] = useState<'all' | 'CE' | 'PE'>('all');
 
-  // Dynamically update spot and futures prices from live quotes
-  const liveFOStocks = foStocks.map((stock) => {
-    const live = getLiveQuote(stock.symbol);
-    const spot = live.currentPrice > 0 ? live.currentPrice : stock.spotPrice;
-    const change = live.dayChangePercent;
-    const future = Number((spot + stock.basis).toFixed(2));
-    return {
-      ...stock,
-      spotPrice: spot,
-      futurePrice: future,
-      changePercent: change,
-    };
-  });
+  // Dynamically update spot, futures, basis, headlines, and CE/PE options from live quotes
+  const liveFOStocks = foStocks.map((stock) => computeDynamicFOTrend(stock));
 
   const buyNowCount = liveFOStocks.filter((s) => s.timing.status === 'BUY_NOW').length;
   const sellNowCount = liveFOStocks.filter((s) => s.timing.status === 'SELL_SHORT_NOW').length;
   const waitDipCount = liveFOStocks.filter((s) => s.timing.status === 'WAIT_FOR_DIP').length;
+  const callCount = liveFOStocks.filter((s) => s.optionSetup?.type === 'CE').length;
+  const putCount = liveFOStocks.filter((s) => s.optionSetup?.type === 'PE').length;
 
   const filteredStocks = liveFOStocks.filter((stock) => {
     if (filterTiming === 'buy_now' && stock.timing.status !== 'BUY_NOW') return false;
@@ -70,6 +62,9 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
 
     if (filterCategory === 'inclusions' && stock.nifty50Category !== 'Inclusion Contender') return false;
     if (filterCategory === 'exclusions' && stock.nifty50Category !== 'Endangered Constituent') return false;
+
+    if (filterOptionType === 'CE' && stock.optionSetup?.type !== 'CE') return false;
+    if (filterOptionType === 'PE' && stock.optionSetup?.type !== 'PE') return false;
 
     return true;
   });
@@ -277,6 +272,38 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
           >
             Wait for Dip ({waitDipCount})
           </button>
+
+          <span className="text-slate-700 hidden sm:inline">|</span>
+
+          {/* Option Type Filter: CE vs PE */}
+          <button
+            onClick={() => setFilterOptionType('CE')}
+            className={`px-3 py-1 rounded transition-colors ${
+              filterOptionType === 'CE'
+                ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 font-bold'
+                : 'text-slate-400 hover:text-emerald-300'
+            }`}
+          >
+            Buy CE Calls ({callCount})
+          </button>
+          <button
+            onClick={() => setFilterOptionType('PE')}
+            className={`px-3 py-1 rounded transition-colors ${
+              filterOptionType === 'PE'
+                ? 'bg-rose-500/25 text-rose-300 border border-rose-500/50 font-bold'
+                : 'text-slate-400 hover:text-rose-300'
+            }`}
+          >
+            Buy PE Puts ({putCount})
+          </button>
+          {filterOptionType !== 'all' && (
+            <button
+              onClick={() => setFilterOptionType('all')}
+              className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+            >
+              Reset CE/PE
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2 text-xs">
@@ -371,6 +398,150 @@ export const FOTrendsView: React.FC<FOTrendsViewProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* REAL-TIME CE / PE OPTION TRADE RECOMMENDATION (TARGET, STRIKE, MARKET MOVE) */}
+            {stock.optionSetup && (
+              <div className="p-4 rounded-xl bg-slate-950 border border-amber-500/50 space-y-3.5 shadow-md">
+                {/* Header: Action Badge, Option Contract, and Expiry */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      Option Trade Recommendation (CE / PE)
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">
+                      {stock.optionSetup.expiryMonth}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded text-xs font-bold font-mono tracking-wide border shadow-sm ${
+                      stock.optionSetup.type === 'CE'
+                        ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/60'
+                        : 'bg-rose-500/25 text-rose-300 border-rose-500/60'
+                    }`}>
+                      {stock.optionSetup.actionBadge}
+                    </span>
+                  </div>
+                </div>
+
+                {/* HIGH-VISIBILITY DIRECTION OF MARKET MOVE BANNER */}
+                <div className={`p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                  stock.optionSetup.type === 'CE'
+                    ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                    : 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {stock.optionSetup.type === 'CE' ? (
+                      <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <TrendingDown className="w-5 h-5 text-rose-400 shrink-0" />
+                    )}
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold tracking-tight">
+                        {stock.optionSetup.type === 'CE'
+                          ? `BULLISH MARKET MOVE: Coiling for Upside Breakout towards Target ₹${stock.optionSetup.underlyingTarget}`
+                          : `BEARISH MARKET MOVE: Downside Breakdown Slide towards Target ₹${stock.optionSetup.underlyingTarget}`
+                        }
+                      </div>
+                      <div className="text-[11px] opacity-90 font-mono mt-0.5">
+                        Current Spot CMP: <strong>₹{stock.spotPrice.toFixed(2)}</strong> &rarr; Stock Target: <strong>₹{stock.optionSetup.underlyingTarget}</strong> (Stop Loss: ₹{stock.optionSetup.underlyingStopLoss})
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 font-mono text-xs">
+                    <span className={`px-2.5 py-1 rounded font-bold border ${
+                      stock.optionSetup.type === 'CE'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                    }`}>
+                      {stock.optionSetup.type === 'CE' ? 'SUGGESTION: BUY CE (CALL)' : 'SUGGESTION: BUY PE (PUT)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option Pricing & Execution Corridor */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+                    <div className="text-slate-400 text-[11px] font-medium">Recommended Contract</div>
+                    <div className="text-sm font-bold font-mono text-white mt-1">
+                      {stock.optionSetup.contractName}
+                    </div>
+                    <div className="text-[11px] text-cyan-400 font-mono mt-0.5">
+                      Strike Price: ₹{stock.optionSetup.strike}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+                    <div className="text-slate-400 text-[11px] font-medium">Option Buy Entry (Premium)</div>
+                    <div className="text-base font-bold font-mono text-amber-300 mt-1">
+                      ₹{stock.optionSetup.entryPremium.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-sans mt-0.5">
+                      {stock.optionSetup.recommendedTiming}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+                    <div className="text-slate-400 text-[11px] font-medium">Option Target Price (Premium)</div>
+                    <div className="text-base font-bold font-mono text-emerald-400 mt-1">
+                      ₹{stock.optionSetup.targetPremium.toFixed(2)}
+                    </div>
+                    <div className="text-[11px] text-emerald-400 font-mono mt-0.5 font-bold">
+                      +{(((stock.optionSetup.targetPremium - stock.optionSetup.entryPremium) / stock.optionSetup.entryPremium) * 100).toFixed(0)}% Profit Potential
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+                    <div className="text-slate-400 text-[11px] font-medium">Option Stop Loss (SL)</div>
+                    <div className="text-base font-bold font-mono text-rose-400 mt-1">
+                      ₹{stock.optionSetup.stopLossPremium.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-rose-400 font-mono mt-0.5">
+                      Strict Risk: ₹{(stock.optionSetup.entryPremium - stock.optionSetup.stopLossPremium).toFixed(2)} / share
+                    </div>
+                  </div>
+                </div>
+
+                {/* BEST TIME TO BUY / HOLD / SELL STRATEGY BAR */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] p-2.5 rounded-lg bg-slate-900/70 border border-slate-800">
+                  <div className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-emerald-300">Best Time to Buy: </strong>
+                      <span className="text-slate-300">{stock.optionSetup.recommendedTiming}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-cyan-300">Holding Strategy: </strong>
+                      <span className="text-slate-300">Hold position while spot sustains above ₹{stock.optionSetup.underlyingStopLoss}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-amber-300">Target Exit: </strong>
+                      <span className="text-slate-300">Book profit when option reaches ₹{stock.optionSetup.targetPremium.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plain-English Market Move Analysis & Drivers */}
+                <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800/80 text-[11px] flex items-start gap-2">
+                  <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed text-slate-300">
+                    <strong className="text-white">Why the Market is Moving: </strong>
+                    {stock.optionSetup.marketMoveReason}
+                    <span className="text-slate-400 ml-1.5 font-mono">
+                      (Underlying Stock Target: <strong className="text-white">₹{stock.optionSetup.underlyingTarget}</strong> · Stop-Loss: <strong className="text-white">₹{stock.optionSetup.underlyingStopLoss}</strong>)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Price, Basis & Technical Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">

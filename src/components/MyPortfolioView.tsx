@@ -28,7 +28,8 @@ import {
   Upload,
   Search,
   Check,
-  CheckCheck
+  CheckCheck,
+  Clock
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
@@ -373,6 +374,24 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         </div>
       </div>
 
+      {/* Long-Term Horizon & 6-Month Cooling Period Principle Banner */}
+      <div className="p-3.5 bg-blue-950/40 border border-blue-500/40 rounded-lg text-xs text-blue-200 flex items-start gap-3 shadow-sm">
+        <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-white tracking-wide">
+              LONG-TERM INVESTMENT HORIZON: MINIMUM 6-MONTH COOLING PERIOD ENFORCED
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              Semi-Annual Rebalance Calibration
+            </span>
+          </div>
+          <p className="text-slate-300 leading-relaxed text-[11px]">
+            This Portfolio Advisor is <strong>not for intraday or short-term swing trading</strong>. Quality Nifty 50 inclusion and core compounder stocks require a minimum <strong>6-month cooling &amp; compounding window</strong> to absorb institutional passive ETF inflows and navigate semi-annual index review cycles. Normal interim market drawdowns (-5% to -15%) during the cooling period represent rupee-cost averaging opportunities rather than premature exit triggers. Only structural index exclusions warrant selling.
+          </p>
+        </div>
+      </div>
+
       {/* Validation Success Notification Banner */}
       {validationSuccessMessage && (
         <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-lg text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn shadow-lg">
@@ -554,6 +573,10 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     <span className={`text-[11px] font-sans px-2 py-0.5 rounded border ${getRebalanceStatusBadgeClass(stock.rebalanceStatus)}`}>
                       {stock.rebalanceStatus}
                     </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                      Min. 6-Mo Cooling
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -595,6 +618,22 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   </div>
                 </div>
 
+                {/* 6-Month Cooling Period & Long-Term Horizon Status */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded bg-slate-950/70 border border-slate-800 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span className="font-semibold text-white">Investment Horizon:</span>
+                    <span className="text-cyan-300 font-medium">Minimum 6-Month Cooling Period</span>
+                    <span className="text-slate-600">·</span>
+                    <span className="text-slate-400">Intraday noise filtered out · Compounding through semi-annual Nifty 50 review cycles</span>
+                  </div>
+                  <div className="flex items-center gap-2 font-mono text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                      180-Day Institutional Compounding Window
+                    </span>
+                  </div>
+                </div>
+
                 {/* DUAL-FIELD EDITING PANEL (Shares Quantity & Avg Purchase Price) */}
                 {isEditing && (
                   <div className="p-3.5 rounded-lg bg-slate-950 border border-cyan-500/50 space-y-3 animate-fadeIn">
@@ -631,12 +670,15 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                           Average Purchase / Buy Price (₹ / share)
                         </label>
                         <input
-                          type="number"
-                          step="0.05"
-                          min="0.05"
-                          required
+                          type="text"
+                          inputMode="decimal"
                           value={editBuyPrice}
-                          onChange={(e) => setEditBuyPrice(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                              setEditBuyPrice(val);
+                            }
+                          }}
                           className="w-full bg-slate-900 border border-slate-700 text-white rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-cyan-400"
                         />
                       </div>
@@ -759,7 +801,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleAddSubmit} noValidate className="space-y-4 text-xs">
               {/* Step 1: Live Search Input */}
               {!selectedStock ? (
                 <div className="space-y-2">
@@ -898,19 +940,36 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     <div>
                       <label className="block text-slate-300 mb-1 font-medium">Your Purchase / Buy Price (₹ / share)</label>
                       <input
-                        type="number"
-                        step="0.05"
-                        min="0.05"
-                        required
+                        type="text"
+                        inputMode="decimal"
                         value={buyPriceInput}
-                        onChange={(e) => setBuyPriceInput(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                            setBuyPriceInput(val);
+                          }
+                        }}
                         placeholder={`e.g. ${selectedStock.currentPrice.toFixed(2)}`}
                         className="w-full bg-slate-950 border border-slate-700 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono"
                       />
-                      <div className="text-[10px] text-slate-400 mt-0.5">
-                        What you actually paid in your broker account
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                        <span>Accepts any broker price (e.g. 249.13)</span>
+                        <button
+                          type="button"
+                          onClick={() => setBuyPriceInput(selectedStock.currentPrice.toFixed(2))}
+                          className="text-emerald-400 hover:underline cursor-pointer font-mono font-medium"
+                        >
+                          Use CMP: ₹{selectedStock.currentPrice.toFixed(2)}
+                        </button>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="p-2.5 rounded bg-blue-950/40 border border-blue-500/30 text-[11px] text-blue-200 flex items-start gap-2">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Long-Term Compounding:</strong> Stock will be monitored with a <strong>minimum 6-month cooling period</strong>. Intraday fluctuation is ignored to allow semi-annual index rebalancing and passive ETF inflows to unfold.
+                    </span>
                   </div>
 
                   <div>

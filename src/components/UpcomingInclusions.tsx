@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UpcomingInclusionStock, InclusionTimingAction } from '../types/index.ts';
 import { useLiveMarket } from '../context/LiveMarketContext.tsx';
-import { ArrowUpRight, TrendingUp, CheckCircle2, ChevronRight, SlidersHorizontal, Target, Clock, ShieldAlert, Zap, Radio } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, CheckCircle2, ChevronRight, SlidersHorizontal, Target, Clock, ShieldAlert, Zap, Radio, RefreshCw } from 'lucide-react';
 
 interface UpcomingInclusionsProps {
   stocks: UpcomingInclusionStock[];
@@ -9,11 +9,21 @@ interface UpcomingInclusionsProps {
 }
 
 export const UpcomingInclusions: React.FC<UpcomingInclusionsProps> = ({ stocks, onSelectStock }) => {
-  const { computeDynamicInclusion } = useLiveMarket();
+  const { computeDynamicInclusion, refreshMarketData } = useLiveMarket();
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [minAlpha, setMinAlpha] = useState<number>(20);
   const [minProbability, setMinProbability] = useState<number>(75);
   const [sortBy, setSortBy] = useState<'alpha' | 'probability' | 'inflow' | 'freeFloat'>('probability');
   const [filterAction, setFilterAction] = useState<string>('all');
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshMarketData();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   // Compute live real-time values for each stock dynamically
   const liveDynamicStocks = stocks.map((s) => computeDynamicInclusion(s));
@@ -119,6 +129,16 @@ export const UpcomingInclusions: React.FC<UpcomingInclusionsProps> = ({ stocks, 
               <option value="freeFloat">Free Float</option>
             </select>
           </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh inclusions live market pricing & timing advice"
+            className="px-2.5 py-1 text-xs font-semibold text-slate-900 bg-emerald-400 hover:bg-emerald-300 rounded transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 
