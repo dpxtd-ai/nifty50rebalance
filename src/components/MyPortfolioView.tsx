@@ -1155,26 +1155,12 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-slate-800">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-cyan-400 shrink-0" />
-                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                    Portfolio Multi-Year Long-Term Wealth Compounding Forecast
-                  </h2>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                    Calculated from Live CMP
-                  </span>
-                  <span>·</span>
-                  <span className="text-emerald-400 flex items-center gap-1 font-sans">
-                    <Lock className="w-3 h-3" />
-                    100% Private (Saved Locally)
-                  </span>
-                  <span>·</span>
-                  <span>{portfolioStocks.length} Holdings Analyzed</span>
-                </div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-cyan-400 shrink-0" />
+                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                  Portfolio Multi-Year Long-Term Wealth Compounding Forecast
+                </h2>
               </div>
               <button
                 onClick={() => setIsForecastModalOpen(false)}
@@ -1230,9 +1216,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   <span>+{upsideTotal1Y}% Growth</span>
                   <span className="text-slate-400 text-[10px] font-sans">Index Inflows</span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
-                  Initial institutional ETF weight adjustments &amp; semi-annual rebalance momentum.
-                </p>
               </div>
 
               {/* 3-Year Forecast */}
@@ -1250,9 +1233,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   <span>+{upsideTotal3Y}% Growth</span>
                   <span className="text-slate-400 text-[10px] font-sans">EBITDA Ramp</span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
-                  Compound earnings expansion, market share consolidation, and operating leverage.
-                </p>
               </div>
 
               {/* 5-Year Forecast */}
@@ -1270,9 +1250,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   <span>+{upsideTotal5Y}% Growth</span>
                   <span className="text-slate-400 text-[10px] font-sans">Capex Maturation</span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
-                  Full capital expenditure cycle yields free cash flows with institutional compounding.
-                </p>
               </div>
 
               {/* 10-Year Forecast */}
@@ -1292,141 +1269,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     {currentTotalValue > 0 ? (totalProjected10Y / currentTotalValue).toFixed(1) : '1.0'}x Multiple
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
-                  Complete secular compounder run capturing decadal Indian GDP and corporate earnings growth.
-                </p>
               </div>
-            </div>
-
-            {/* Individual Stock Compounding Breakdown Table */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Holding-by-Holding Compounding Breakdown (Click any stock to inspect)</span>
-                </h4>
-                <span className="text-[11px] text-slate-500">
-                  {portfolioStocks.length} Stocks in Portfolio
-                </span>
-              </div>
-
-              {portfolioStocks.length === 0 ? (
-                <div className="p-5 text-center text-xs text-slate-500 bg-slate-950 rounded-lg border border-slate-800">
-                  No stocks added to portfolio yet. Click "Add Stock" to begin tracking.
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-800">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono text-[11px]">
-                        <th className="py-2.5 px-3">Stock</th>
-                        <th className="py-2.5 px-3">Shares</th>
-                        <th className="py-2.5 px-3">Live CMP</th>
-                        <th className="py-2.5 px-3">Current Val</th>
-                        <th className="py-2.5 px-3 text-cyan-300">1Y Target</th>
-                        <th className="py-2.5 px-3 text-blue-300">3Y Target</th>
-                        <th className="py-2.5 px-3 text-indigo-300">5Y Target</th>
-                        <th className="py-2.5 px-3 text-amber-300">10Y Target</th>
-                        <th className="py-2.5 px-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60 font-mono">
-                      {portfolioStocks.map((stock) => {
-                        const preds = stock.predictions && stock.predictions.length > 0
-                          ? stock.predictions
-                          : calculateHorizonPredictions(
-                              resolveRealtimeMarketQuote(stock.symbol || stock.name),
-                              stock.currentPrice,
-                              stock.shares
-                            );
-                        const p1Y = preds.find((p) => p.horizon === '1Y');
-                        const p3Y = preds.find((p) => p.horizon === '3Y');
-                        const p5Y = preds.find((p) => p.horizon === '5Y');
-                        const p10Y = preds.find((p) => p.horizon === '10Y');
-                        const currentVal = stock.shares * stock.currentPrice;
-
-                        return (
-                          <tr
-                            key={stock.id}
-                            onClick={() => {
-                              setSelectedStockForOutlook(stock);
-                              setIsForecastModalOpen(false);
-                            }}
-                            className="hover:bg-slate-800/60 cursor-pointer transition-colors group"
-                          >
-                            <td className="py-2.5 px-3 font-sans">
-                              <div className="font-bold font-mono text-white group-hover:text-cyan-300 flex items-center gap-1">
-                                {stock.symbol}
-                                <ExternalLink className="w-3 h-3 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                              <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
-                                {stock.name}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3 text-slate-300">
-                              {stock.shares}
-                            </td>
-                            <td className="py-2.5 px-3 text-white font-semibold">
-                              ₹{stock.currentPrice.toFixed(2)}
-                            </td>
-                            <td className="py-2.5 px-3 text-slate-200">
-                              ₹{currentVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                            </td>
-                            <td className="py-2.5 px-3 text-cyan-300">
-                              ₹{p1Y?.targetPrice.toFixed(2) || (stock.currentPrice * 1.18).toFixed(2)}
-                            </td>
-                            <td className="py-2.5 px-3 text-blue-300">
-                              ₹{p3Y?.targetPrice.toFixed(2) || (stock.currentPrice * 1.6).toFixed(2)}
-                            </td>
-                            <td className="py-2.5 px-3 text-indigo-300">
-                              ₹{p5Y?.targetPrice.toFixed(2) || (stock.currentPrice * 2.33).toFixed(2)}
-                            </td>
-                            <td className="py-2.5 px-3 text-amber-300 font-bold">
-                              ₹{p10Y?.targetPrice.toFixed(2) || (stock.currentPrice * 5.0).toFixed(2)}
-                            </td>
-                            <td className="py-2.5 px-3 text-right">
-                              <span className="text-[10px] font-sans text-cyan-400 group-hover:underline">
-                                View Outlook &rarr;
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Philosophy & Minimum 6-Month Cooling Period Principle */}
-            <div className="p-3.5 bg-blue-950/40 border border-blue-500/40 rounded-xl text-xs text-blue-200 space-y-1.5">
-              <div className="flex items-center gap-2 font-semibold text-white">
-                <Clock className="w-4 h-4 text-cyan-400" />
-                <span>Long-Term Holding Horizon: Minimum 6-Month Cooling Period Enforced</span>
-              </div>
-              <p className="text-slate-300 text-[11px] leading-relaxed">
-                This Portfolio Advisor is engineered exclusively for long-term compounders. High-quality Nifty 50 constituents and candidate inclusions require at least a <strong>6-month cooling &amp; compounding window</strong> to absorb institutional passive ETF inflows and navigate semi-annual index rebalance cycles. Routine market pullbacks (-5% to -15%) during the cooling period represent accumulation opportunities rather than premature exit triggers.
-              </p>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={handleExportPortfolio}
-                className="px-3 py-1.5 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Export Projections (.json)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsForecastModalOpen(false)}
-                className="px-5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded font-sans cursor-pointer transition-colors shadow-sm"
-              >
-                Close Forecast
-              </button>
             </div>
           </div>
         </div>
