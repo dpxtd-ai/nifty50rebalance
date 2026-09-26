@@ -59,10 +59,8 @@ function AppContent() {
           return parsed.map((stock: UserPortfolioStock) => {
             const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
             if (quote) {
-              const activePrice = (!quote.isFallback && quote.currentPrice > 0)
-                ? quote.currentPrice
-                : (stock.currentPrice > 0 ? stock.currentPrice : quote.currentPrice);
-              const advisor = generateAdvisorRecommendation(quote, stock.avgBuyPrice, activePrice);
+              const activePrice = stock.currentPrice > 0 ? stock.currentPrice : quote.currentPrice;
+              const advisor = generateAdvisorRecommendation(quote, stock.avgBuyPrice, activePrice, stock.shares);
               return {
                 ...stock,
                 symbol: quote.symbol,
@@ -71,13 +69,18 @@ function AppContent() {
                 bseKey: quote.bseKey,
                 isin: quote.isin,
                 currentPrice: activePrice,
-                dayChangePercent: !quote.isFallback ? quote.dayChangePercent : stock.dayChangePercent,
+                dayChangePercent: stock.dayChangePercent || quote.dayChangePercent,
                 rebalanceStatus: quote.rebalanceStatus,
                 targetPrice: quote.targetPrice,
                 stopLoss: quote.stopLoss,
                 riskRating: quote.riskRating,
                 suggestion: advisor.suggestion,
                 suggestionRationale: advisor.rationale,
+                predictions: advisor.predictions,
+                targetPrice1Y: advisor.targetPrice1Y,
+                targetPrice3Y: advisor.targetPrice3Y,
+                targetPrice5Y: advisor.targetPrice5Y,
+                targetPrice10Y: advisor.targetPrice10Y,
               };
             }
             return stock;
@@ -115,34 +118,38 @@ function AppContent() {
   }, [portfolioStocks]);
 
   const handleRefreshAllPortfolioQuotes = async () => {
-    // 1. Immediately sync with calibrated profiles without overwriting custom/live CMPs with 350 fallback
+    // 1. Preserve existing current prices or initialize missing quotes
     setPortfolioStocks((prev) =>
       prev.map((item) => {
         const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
-        const priceToUse = !profile.isFallback && profile.currentPrice > 0
-          ? profile.currentPrice
-          : (item.currentPrice > 0 ? item.currentPrice : profile.currentPrice);
-        const dayChangeToUse = !profile.isFallback ? profile.dayChangePercent : item.dayChangePercent;
-        const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, priceToUse);
+        const priceToUse = item.currentPrice > 0
+          ? item.currentPrice
+          : (profile && profile.currentPrice > 0 ? profile.currentPrice : 350);
+        const dayChangeToUse = item.dayChangePercent !== undefined
+          ? item.dayChangePercent
+          : (profile ? profile.dayChangePercent : 0);
+        const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, priceToUse, item.shares);
         return {
           ...item,
-          symbol: profile.symbol,
-          name: profile.name,
-          nseKey: profile.nseKey,
-          bseKey: profile.bseKey,
-          isin: profile.isin,
+          symbol: profile.symbol || item.symbol,
+          name: profile.name || item.name,
+          nseKey: profile.nseKey || item.nseKey,
+          bseKey: profile.bseKey || item.bseKey,
+          isin: profile.isin || item.isin,
           currentPrice: priceToUse,
           dayChangePercent: dayChangeToUse,
           suggestion: advisor.suggestion,
           suggestionRationale: advisor.rationale,
-          targetPrice: profile.targetPrice,
-          stopLoss: profile.stopLoss,
-          riskRating: profile.riskRating,
+          predictions: advisor.predictions,
+          targetPrice1Y: advisor.targetPrice1Y,
+          targetPrice3Y: advisor.targetPrice3Y,
+          targetPrice5Y: advisor.targetPrice5Y,
+          targetPrice10Y: advisor.targetPrice10Y,
         };
       })
     );
 
-    // 2. Fetch live quotes from API in background
+    // 2. Fetch live quotes from API for all portfolio stocks
     try {
       const symbols = portfolioStocks.map((s) => s.symbol || s.name);
       if (symbols.length > 0) {
@@ -151,15 +158,20 @@ function AppContent() {
           prev.map((item) => {
             const sym = item.symbol || item.name;
             const live = liveQuotes[sym];
-            if (live && live.currentPrice > 0 && !live.isFallback) {
+            if (live && live.currentPrice > 0) {
               const profile = resolveRealtimeMarketQuote(sym);
-              const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice);
+              const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice, item.shares);
               return {
                 ...item,
                 currentPrice: live.currentPrice,
                 dayChangePercent: live.dayChangePercent,
                 suggestion: advisor.suggestion,
                 suggestionRationale: advisor.rationale,
+                predictions: advisor.predictions,
+                targetPrice1Y: advisor.targetPrice1Y,
+                targetPrice3Y: advisor.targetPrice3Y,
+                targetPrice5Y: advisor.targetPrice5Y,
+                targetPrice10Y: advisor.targetPrice10Y,
               };
             }
             return item;
@@ -167,7 +179,7 @@ function AppContent() {
         );
       }
     } catch {
-      // already synced
+      // keep current
     }
 
     if (soundEnabled) {
@@ -226,13 +238,18 @@ function AppContent() {
             prev.map((item) => {
               if (item.id === newStock.id) {
                 const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
-                const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice);
+                const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice, item.shares);
                 return {
                   ...item,
                   currentPrice: live.currentPrice,
                   dayChangePercent: live.dayChangePercent,
                   suggestion: advisor.suggestion,
                   suggestionRationale: advisor.rationale,
+                  predictions: advisor.predictions,
+                  targetPrice1Y: advisor.targetPrice1Y,
+                  targetPrice3Y: advisor.targetPrice3Y,
+                  targetPrice5Y: advisor.targetPrice5Y,
+                  targetPrice10Y: advisor.targetPrice10Y,
                 };
               }
               return item;
@@ -256,6 +273,13 @@ function AppContent() {
     }
   };
 
+  const handleBatchUpdatePortfolioStocks = (updatedStocks: UserPortfolioStock[]) => {
+    setPortfolioStocks(updatedStocks);
+    if (soundEnabled) {
+      playAlertChime();
+    }
+  };
+
   const handleToggleAutoRefresh = () => {
     setAutoRefreshEnabled((prev) => !prev);
   };
@@ -269,8 +293,16 @@ function AppContent() {
             ? currentPrice
             : (item.currentPrice > 0 ? item.currentPrice : (profile ? profile.currentPrice : item.currentPrice));
           const advisor = profile
-            ? generateAdvisorRecommendation(profile, avgBuyPrice, activePrice)
-            : { suggestion: item.suggestion, rationale: item.suggestionRationale };
+            ? generateAdvisorRecommendation(profile, avgBuyPrice, activePrice, shares)
+            : {
+                suggestion: item.suggestion,
+                rationale: item.suggestionRationale,
+                predictions: item.predictions,
+                targetPrice1Y: item.targetPrice1Y,
+                targetPrice3Y: item.targetPrice3Y,
+                targetPrice5Y: item.targetPrice5Y,
+                targetPrice10Y: item.targetPrice10Y,
+              };
           return {
             ...item,
             symbol: profile.symbol,
@@ -283,6 +315,11 @@ function AppContent() {
             currentPrice: activePrice,
             suggestion: advisor.suggestion,
             suggestionRationale: advisor.rationale,
+            predictions: advisor.predictions,
+            targetPrice1Y: advisor.targetPrice1Y,
+            targetPrice3Y: advisor.targetPrice3Y,
+            targetPrice5Y: advisor.targetPrice5Y,
+            targetPrice10Y: advisor.targetPrice10Y,
           };
         }
         return item;
@@ -735,6 +772,7 @@ function AppContent() {
             onRestorePortfolio={handleRestorePortfolio}
             onClearPortfolio={handleClearPortfolio}
             onRefreshQuotes={handleRefreshAllPortfolioQuotes}
+            onBatchUpdateStocks={handleBatchUpdatePortfolioStocks}
           />
         )}
 

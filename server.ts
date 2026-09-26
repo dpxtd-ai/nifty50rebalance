@@ -43,21 +43,26 @@ app.get('/api/quotes', async (req, res) => {
     .map((s) => s.trim())
     .filter(Boolean);
   const results: Record<string, any> = {};
-
-  await Promise.all(
-    symbols.map(async (sym) => {
-      const tickersToTry = mapIndianSymbolToYahooTicker(sym);
-      for (const ticker of tickersToTry) {
-        try {
-          const q = await fetchYahooQuote(ticker);
-          results[sym] = q;
-          return;
-        } catch {
-          // try next
+  for (let i = 0; i < symbols.length; i += 4) {
+    const chunk = symbols.slice(i, i + 4);
+    await Promise.all(
+      chunk.map(async (sym) => {
+        const tickersToTry = mapIndianSymbolToYahooTicker(sym);
+        for (const ticker of tickersToTry) {
+          try {
+            const q = await fetchYahooQuote(ticker);
+            results[sym] = q;
+            return;
+          } catch {
+            // try next
+          }
         }
-      }
-    })
-  );
+      })
+    );
+    if (i + 4 < symbols.length) {
+      await new Promise((r) => setTimeout(r, 60));
+    }
+  }
 
   return res.json({ success: true, quotes: results });
 });

@@ -125,6 +125,17 @@ export type NavTab = 'upcoming' | 'exclusions' | 'deleted' | 'daily' | 'alerts' 
 
 export type PortfolioAction = 'HOLD_FIRM' | 'ACCUMULATE' | 'BOOK_PARTIAL_PROFIT' | 'SELL_EXIT_NOW';
 
+export interface HorizonPrediction {
+  horizon: '1Y' | '3Y' | '5Y' | '10Y';
+  years: number;
+  label: string;
+  targetPrice: number;
+  upsidePercent: number;
+  projectedHoldingValue: number;
+  cagrPercent: number;
+  thesis: string;
+}
+
 export interface UserPortfolioStock {
   id: string;
   symbol: string;
@@ -144,6 +155,11 @@ export interface UserPortfolioStock {
   targetPrice: number;
   stopLoss: number;
   riskRating: 'Low' | 'Moderate' | 'High' | 'Critical';
+  predictions?: HorizonPrediction[];
+  targetPrice1Y?: number;
+  targetPrice3Y?: number;
+  targetPrice5Y?: number;
+  targetPrice10Y?: number;
 }
 
 export type FOSignalType = 'STRONG_BUY' | 'BUY_ON_DIPS' | 'SELL_SHORT' | 'BOOK_PROFIT_EXIT' | 'NEUTRAL';

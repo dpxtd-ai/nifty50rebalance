@@ -54,20 +54,27 @@ function liveQuotePlugin(): Plugin {
           res.setHeader('Content-Type', 'application/json');
 
           const results: Record<string, any> = {};
-          await Promise.all(
-            symbols.map(async (sym) => {
-              const tickers = mapIndianSymbolToYahooTicker(sym);
-              for (const ticker of tickers) {
-                try {
-                  const q = await fetchYahooQuote(ticker);
-                  results[sym] = q;
-                  return;
-                } catch {
-                  // next
+          // Process in chunks of 4 to prevent Yahoo rate limiting while keeping it fast
+          for (let i = 0; i < symbols.length; i += 4) {
+            const chunk = symbols.slice(i, i + 4);
+            await Promise.all(
+              chunk.map(async (sym) => {
+                const tickers = mapIndianSymbolToYahooTicker(sym);
+                for (const ticker of tickers) {
+                  try {
+                    const q = await fetchYahooQuote(ticker);
+                    results[sym] = q;
+                    return;
+                  } catch {
+                    // next
+                  }
                 }
-              }
-            })
-          );
+              })
+            );
+            if (i + 4 < symbols.length) {
+              await new Promise((r) => setTimeout(r, 60));
+            }
+          }
 
           res.statusCode = 200;
           res.end(JSON.stringify({ success: true, quotes: results }));

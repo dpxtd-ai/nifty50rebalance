@@ -1,4 +1,4 @@
-import { UserPortfolioStock, PortfolioAction } from '../types/index.ts';
+import { UserPortfolioStock, PortfolioAction, HorizonPrediction } from '../types/index.ts';
 
 export interface KnownStockProfile {
   symbol: string;
@@ -130,11 +130,11 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE075A01022',
     series: 'EQ',
     sector: 'IT Services',
-    currentPrice: 532.10,
-    dayChangePercent: 0.20,
+    currentPrice: 164.02,
+    dayChangePercent: 0.23,
     rebalanceStatus: 'Exclusion Vulnerable (-Outflows)',
-    targetPrice: 510.0,
-    stopLoss: 550.0,
+    targetPrice: 200.0,
+    stopLoss: 148.0,
     riskRating: 'High',
     baseRationale: 'Multi-quarter underperformance vs Nifty IT peers; trailing free-float rank degraded to #47 with ₹2,210 Cr outflow risk.',
     defaultAction: 'SELL_EXIT_NOW'
@@ -147,11 +147,11 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE040A01034',
     series: 'EQ',
     sector: 'Banking',
-    currentPrice: 1682.00,
-    dayChangePercent: 1.15,
+    currentPrice: 735.60,
+    dayChangePercent: 0.92,
     rebalanceStatus: 'Core Constituent (Stable)',
-    targetPrice: 1800.0,
-    stopLoss: 1620.0,
+    targetPrice: 880.0,
+    stopLoss: 680.0,
     riskRating: 'Low',
     baseRationale: 'Highest weighted anchor constituent in Nifty 50 (~11.5%). Stable foreign institutional ownership baseline and low rebalance risk.',
     defaultAction: 'HOLD_FIRM'
@@ -164,11 +164,11 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE002A01018',
     series: 'EQ',
     sector: 'Energy & Telecom',
-    currentPrice: 2985.00,
-    dayChangePercent: 0.85,
+    currentPrice: 1226.00,
+    dayChangePercent: 0.56,
     rebalanceStatus: 'Core Constituent (Stable)',
-    targetPrice: 3200.0,
-    stopLoss: 2890.0,
+    targetPrice: 1480.0,
+    stopLoss: 1120.0,
     riskRating: 'Low',
     baseRationale: 'Core bellwether constituent with ~9.5% weight. High free float buffer guarantees permanent constituent retention.',
     defaultAction: 'HOLD_FIRM'
@@ -181,11 +181,11 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE467B01029',
     series: 'EQ',
     sector: 'IT Services',
-    currentPrice: 4290.00,
-    dayChangePercent: 0.60,
+    currentPrice: 2082.00,
+    dayChangePercent: -0.24,
     rebalanceStatus: 'Core Constituent (Stable)',
-    targetPrice: 4600.0,
-    stopLoss: 4100.0,
+    targetPrice: 2500.0,
+    stopLoss: 1920.0,
     riskRating: 'Low',
     baseRationale: 'Largest Indian IT services exporter with robust cash flows and high dividend payout. Zero index exclusion vulnerability.',
     defaultAction: 'HOLD_FIRM'
@@ -198,11 +198,11 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE009A01021',
     series: 'EQ',
     sector: 'IT Services',
-    currentPrice: 1895.00,
-    dayChangePercent: 0.45,
+    currentPrice: 1000.20,
+    dayChangePercent: -1.41,
     rebalanceStatus: 'Core Constituent (Stable)',
-    targetPrice: 2050.0,
-    stopLoss: 1800.0,
+    targetPrice: 1250.0,
+    stopLoss: 920.0,
     riskRating: 'Low',
     baseRationale: 'Liquid index heavyweight with second largest IT weighting in Nifty 50. Safe long-term compounder.',
     defaultAction: 'HOLD_FIRM'
@@ -215,8 +215,8 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE090A01021',
     series: 'EQ',
     sector: 'Banking',
-    currentPrice: 1285.00,
-    dayChangePercent: 0.90,
+    currentPrice: 1326.80,
+    dayChangePercent: -0.58,
     rebalanceStatus: 'Core Constituent (Stable)',
     targetPrice: 1400.0,
     stopLoss: 1220.0,
@@ -623,11 +623,11 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE415G01027',
     series: 'EQ',
     sector: 'Railway Infrastructure PSU',
-    currentPrice: 382.40,
-    dayChangePercent: -0.45,
+    currentPrice: 207.00,
+    dayChangePercent: 0.49,
     rebalanceStatus: 'High Alpha Contender',
-    targetPrice: 440.0,
-    stopLoss: 345.0,
+    targetPrice: 260.0,
+    stopLoss: 185.0,
     riskRating: 'Moderate',
     baseRationale: 'Indian railway track doubling, electrification, and metro project pipeline.',
     defaultAction: 'ACCUMULATE'
@@ -640,13 +640,13 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE053F01010',
     series: 'EQ',
     sector: 'Railway NBFC / Financing',
-    currentPrice: 146.50,
-    dayChangePercent: -0.30,
+    currentPrice: 79.95,
+    dayChangePercent: 0.11,
     rebalanceStatus: 'Core Constituent (Stable)',
-    targetPrice: 175.0,
-    stopLoss: 132.0,
+    targetPrice: 108.0,
+    stopLoss: 68.0,
     riskRating: 'Low',
-    baseRationale: 'Zero-NPA financing backbone for Indian Railways rolling stock.',
+    baseRationale: 'Zero-NPA sovereign financing backbone for Indian Railways rolling stock.',
     defaultAction: 'HOLD_FIRM'
   },
   {
@@ -657,8 +657,8 @@ export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
     isin: 'INE202E01016',
     series: 'EQ',
     sector: 'Renewable Energy NBFC',
-    currentPrice: 194.20,
-    dayChangePercent: 0.85,
+    currentPrice: 113.22,
+    dayChangePercent: 2.82,
     rebalanceStatus: 'High Alpha Contender',
     targetPrice: 225.0,
     stopLoss: 178.0,
@@ -901,81 +901,160 @@ export function searchNSEBSEStocks(query: string): KnownStockProfile[] {
   );
 }
 
+export function calculateHorizonPredictions(
+  profile: KnownStockProfile,
+  currentPrice: number,
+  shares: number = 1
+): HorizonPrediction[] {
+  const p = currentPrice > 0 ? currentPrice : profile.currentPrice;
+
+  // Sector and category specific compounding CAGR assumptions
+  let cagr1Y = 0.18;
+  let cagr3Y = 0.17;
+  let cagr5Y = 0.185;
+  let cagr10Y = 0.175;
+
+  if (profile.sector.includes('Railway') || profile.sector.includes('Defence')) {
+    cagr1Y = 0.22;
+    cagr3Y = 0.20;
+    cagr5Y = 0.19;
+    cagr10Y = 0.18;
+  } else if (profile.sector.includes('Banking') || profile.sector.includes('Financial')) {
+    cagr1Y = 0.16;
+    cagr3Y = 0.165;
+    cagr5Y = 0.17;
+    cagr10Y = 0.165;
+  } else if (profile.sector.includes('Retail') || profile.sector.includes('Consumer')) {
+    cagr1Y = 0.20;
+    cagr3Y = 0.21;
+    cagr5Y = 0.20;
+    cagr10Y = 0.19;
+  } else if (profile.sector.includes('IT') || profile.sector.includes('Technology')) {
+    cagr1Y = 0.15;
+    cagr3Y = 0.16;
+    cagr5Y = 0.17;
+    cagr10Y = 0.16;
+  }
+
+  const target1Y = Number((p * (1 + cagr1Y)).toFixed(2));
+  const target3Y = Number((p * Math.pow(1 + cagr3Y, 3)).toFixed(2));
+  const target5Y = Number((p * Math.pow(1 + cagr5Y, 5)).toFixed(2));
+  const target10Y = Number((p * Math.pow(1 + cagr10Y, 10)).toFixed(2));
+
+  return [
+    {
+      horizon: '1Y',
+      years: 1,
+      label: '1-Year Target',
+      targetPrice: target1Y,
+      upsidePercent: Number((((target1Y - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((target1Y * shares).toFixed(2)),
+      cagrPercent: Number((cagr1Y * 100).toFixed(1)),
+      thesis: 'Index constituent rebalance inflows & annual operational EBITDA expansion.'
+    },
+    {
+      horizon: '3Y',
+      years: 3,
+      label: '3-Year Target',
+      targetPrice: target3Y,
+      upsidePercent: Number((((target3Y - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((target3Y * shares).toFixed(2)),
+      cagrPercent: Number((cagr3Y * 100).toFixed(1)),
+      thesis: 'Operating leverage conversion, capacity ramp-up & steady dividend yields.'
+    },
+    {
+      horizon: '5Y',
+      years: 5,
+      label: '5-Year Target',
+      targetPrice: target5Y,
+      upsidePercent: Number((((target5Y - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((target5Y * shares).toFixed(2)),
+      cagrPercent: Number((cagr5Y * 100).toFixed(1)),
+      thesis: 'Full multi-year capex compounding, market share expansion & sovereign moat.'
+    },
+    {
+      horizon: '10Y',
+      years: 10,
+      label: '10-Year Target',
+      targetPrice: target10Y,
+      upsidePercent: Number((((target10Y - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((target10Y * shares).toFixed(2)),
+      cagrPercent: Number((cagr10Y * 100).toFixed(1)),
+      thesis: 'Decade compounding wealth engine with reinvested dividend cash flows.'
+    }
+  ];
+}
+
 export function generateAdvisorRecommendation(
   profile: KnownStockProfile,
   avgBuyPrice: number,
-  currentPrice: number
+  currentPrice: number,
+  shares: number = 1
 ): {
   suggestion: PortfolioAction;
   rationale: string;
+  predictions: HorizonPrediction[];
+  targetPrice1Y: number;
+  targetPrice3Y: number;
+  targetPrice5Y: number;
+  targetPrice10Y: number;
 } {
-  const pnlPercent = ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
+  const p = currentPrice > 0 ? currentPrice : profile.currentPrice;
+  const pnlPercent = avgBuyPrice > 0 ? ((p - avgBuyPrice) / avgBuyPrice) * 100 : 0;
+  const predictions = calculateHorizonPredictions(profile, p, shares);
+
+  const p1Y = predictions[0];
+  const p3Y = predictions[1];
+  const p5Y = predictions[2];
+  const p10Y = predictions[3];
 
   // 1. Critical Deletion Risk: Structural Outflows require exit
   if (profile.rebalanceStatus === 'Exclusion Vulnerable (-Outflows)') {
     return {
       suggestion: 'SELL_EXIT_NOW',
-      rationale: `RECOMMENDATION: SELL / EXIT. ${profile.symbol} is facing critical deletion from Nifty 50 with expected passive ETF selling of over ₹1,500+ Cr. Reallocate capital into higher-alpha long-term contenders.`
+      rationale: `RECOMMENDATION: SELL / EXIT. ${profile.symbol} is facing critical exclusion risk from Nifty 50 with estimated passive ETF selling. Reallocate capital into long-term compounding leaders.`,
+      predictions,
+      targetPrice1Y: p1Y.targetPrice,
+      targetPrice3Y: p3Y.targetPrice,
+      targetPrice5Y: p5Y.targetPrice,
+      targetPrice10Y: p10Y.targetPrice,
     };
   }
 
-  // 2. LONG-TERM INVESTMENT HORIZON: MINIMUM 6-MONTH COOLING PERIOD
-  // Quality Nifty 50 inclusion and core constituent candidates require a 6-month cooling and compounding window to absorb passive ETF inflows and deliver outperformance across semi-annual review cycles.
-  if (profile.rebalanceStatus === 'Upcoming Inclusion (+Inflows)') {
-    if (pnlPercent > 45) {
-      return {
-        suggestion: 'BOOK_PARTIAL_PROFIT',
-        rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (20-30%) & MAINTAIN CORE LONG-TERM POSITION. You have +${pnlPercent.toFixed(1)}% unrealized gain. Rebalance capital while retaining remainder for the mandatory 6-month institutional index compounding cycle.`
-      };
-    }
-    if (pnlPercent < -6) {
-      return {
-        suggestion: 'ACCUMULATE',
-        rationale: `RECOMMENDATION: ACCUMULATE ON DIP (6-MONTH COOLING PERIOD ACTIVE). Position is at ${pnlPercent.toFixed(1)}% from purchase price ₹${avgBuyPrice.toFixed(2)}. Normal market volatility during the 6-month pre/post inclusion cooling period creates an optimal rupee-cost averaging opportunity before ETF inflows settle.`
-      };
-    }
-    return {
-      suggestion: 'HOLD_FIRM',
-      rationale: `RECOMMENDATION: HOLD FIRM (MINIMUM 6-MONTH COOLING PERIOD). ${profile.symbol} is in the active institutional inclusion corridor. Maintain long-term conviction across the semi-annual review window. ${profile.baseRationale}`
-    };
-  }
-
-  if (profile.rebalanceStatus === 'High Alpha Contender') {
-    if (pnlPercent < -8) {
-      return {
-        suggestion: 'ACCUMULATE',
-        rationale: `RECOMMENDATION: ACCUMULATE ON PULLBACK (6-MONTH HORIZON). Short-term dip of ${pnlPercent.toFixed(1)}% provides attractive accumulation valuation within the 6-month investment horizon. Target ₹${profile.targetPrice}.`
-      };
-    }
-    if (pnlPercent > 40) {
-      return {
-        suggestion: 'BOOK_PARTIAL_PROFIT',
-        rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (+${pnlPercent.toFixed(1)}%). Rebalance tactical gains while holding remaining 70% allocation across the 6-month cooling window.`
-      };
-    }
-    return {
-      suggestion: 'HOLD_FIRM',
-      rationale: `RECOMMENDATION: HOLD FIRM (6-MONTH COOLING PERIOD). High alpha generation with long-term structural order book pipeline. Maintain positions through the 6-month semi-annual compounding cycle.`
-    };
-  }
-
-  // Core Constituent (Stable)
-  if (pnlPercent > 35) {
-    return {
-      suggestion: 'BOOK_PARTIAL_PROFIT',
-      rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (+${pnlPercent.toFixed(1)}%). Rebalance tactical gains while preserving core allocation for long-term dividends.`
-    };
-  }
-
-  if (pnlPercent < -10) {
+  // 2. Position down significantly from purchase price
+  if (pnlPercent < -5) {
     return {
       suggestion: 'ACCUMULATE',
-      rationale: `RECOMMENDATION: ACCUMULATE (LONG-TERM 6-MONTH HORIZON). Core index constituent down ${pnlPercent.toFixed(1)}% from entry; institutional index funds maintain steady allocation. Accumulate during market consolidation.`
+      rationale: `RECOMMENDATION: ACCUMULATE ON DIP (LONG-TERM 1Y, 3Y, 5Y & 10Y HORIZON). Current CMP of ₹${p.toFixed(2)} is down ${Math.abs(pnlPercent).toFixed(1)}% from buy price ₹${avgBuyPrice.toFixed(2)}. For high-conviction holdings with a 3 to 10-year investment horizon, interim consolidations represent optimal rupee-cost averaging windows. Projected Targets: 1Y ₹${p1Y.targetPrice} (+${p1Y.upsidePercent}%), 3Y ₹${p3Y.targetPrice} (+${p3Y.upsidePercent}%), 5Y ₹${p5Y.targetPrice} (+${p5Y.upsidePercent}%), 10Y ₹${p10Y.targetPrice} (+${p10Y.upsidePercent}%). Hold firmly through multi-year review cycles.`,
+      predictions,
+      targetPrice1Y: p1Y.targetPrice,
+      targetPrice3Y: p3Y.targetPrice,
+      targetPrice5Y: p5Y.targetPrice,
+      targetPrice10Y: p10Y.targetPrice,
     };
   }
 
+  // 3. Position has substantial unrealized gains (> 40%)
+  if (pnlPercent > 40) {
+    return {
+      suggestion: 'BOOK_PARTIAL_PROFIT',
+      rationale: `RECOMMENDATION: BOOK PARTIAL PROFIT (20-30%) & HOLD REMAINDER FOR 3Y/5Y/10Y. You have +${pnlPercent.toFixed(1)}% unrealized gain at live CMP ₹${p.toFixed(2)}. Harvest tactical gains on 20-30% while retaining 70-80% allocation for 3-Year (₹${p3Y.targetPrice}), 5-Year (₹${p5Y.targetPrice}), and 10-Year (₹${p10Y.targetPrice}) compounding.`,
+      predictions,
+      targetPrice1Y: p1Y.targetPrice,
+      targetPrice3Y: p3Y.targetPrice,
+      targetPrice5Y: p5Y.targetPrice,
+      targetPrice10Y: p10Y.targetPrice,
+    };
+  }
+
+  // 4. Position in normal holding range (-5% to +40%)
   return {
-    suggestion: profile.defaultAction,
-    rationale: `RECOMMENDATION: ${profile.defaultAction.replace(/_/g, ' ')} (6-MONTH COOLING PERIOD). Long-term holding strategy aligned with semi-annual Nifty 50 rebalancing. ${profile.baseRationale}`
+    suggestion: 'HOLD_FIRM',
+    rationale: `RECOMMENDATION: HOLD FIRM (COMPOUNDING HORIZON 1-10 YEARS). Position is aligned at CMP ₹${p.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}% vs buy price ₹${avgBuyPrice.toFixed(2)}). Maintain holding conviction across 1Y (₹${p1Y.targetPrice}), 3Y (₹${p3Y.targetPrice}), 5Y (₹${p5Y.targetPrice}), and 10Y (₹${p10Y.targetPrice}) targets. ${profile.baseRationale}`,
+    predictions,
+    targetPrice1Y: p1Y.targetPrice,
+    targetPrice3Y: p3Y.targetPrice,
+    targetPrice5Y: p5Y.targetPrice,
+    targetPrice10Y: p10Y.targetPrice,
   };
 }

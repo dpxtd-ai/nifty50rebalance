@@ -10,7 +10,20 @@ interface CachedQuote {
 const quoteCache = new Map<string, CachedQuote>();
 
 export function mapIndianSymbolToYahooTicker(rawSymbol: string): string[] {
-  const s = rawSymbol.trim().toUpperCase().replace(/\s+/g, '');
+  let s = rawSymbol.trim().toUpperCase().replace(/\s+/g, '');
+
+  if (s.startsWith('NSE:')) {
+    s = s.replace('NSE:', '').trim();
+  } else if (s.startsWith('BSE:')) {
+    s = s.replace('BSE:', '').trim();
+    if (!s.endsWith('.BO')) {
+      return [`${s}.BO`, `${s}.NS`];
+    }
+  }
+
+  if (s.endsWith('.NS') || s.endsWith('.BO')) {
+    return [s];
+  }
 
   if (s === 'NIFTY' || s === 'NIFTY50' || s === 'NIFTY_50' || s === '^NSEI' || s.includes('NIFTY50INDEX')) {
     return ['^NSEI'];

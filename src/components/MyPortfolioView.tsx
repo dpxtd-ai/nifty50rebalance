@@ -5,6 +5,7 @@ import {
   searchNSEBSEStocks,
   resolveRealtimeMarketQuote,
   generateAdvisorRecommendation,
+  calculateHorizonPredictions,
   KnownStockProfile
 } from '../data/portfolioPresets.ts';
 import { fetchRealtimeQuote, fetchBatchRealtimeQuotes } from '../services/marketDataService.ts';
@@ -40,6 +41,7 @@ interface MyPortfolioViewProps {
   onRestorePortfolio: (stocks: UserPortfolioStock[]) => void;
   onClearPortfolio: () => void;
   onRefreshQuotes?: () => void;
+  onBatchUpdateStocks?: (updatedStocks: UserPortfolioStock[]) => void;
 }
 
 export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
@@ -50,6 +52,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   onRestorePortfolio,
   onClearPortfolio,
   onRefreshQuotes,
+  onBatchUpdateStocks,
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -166,7 +169,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     // Real-time market price is ALWAYS auto-fetched from live quote
     const realTimeMarketPrice = selectedStock.currentPrice;
 
-    const advisor = generateAdvisorRecommendation(selectedStock, buyPriceNum, realTimeMarketPrice);
+    const advisor = generateAdvisorRecommendation(selectedStock, buyPriceNum, realTimeMarketPrice, sharesNum);
 
     onAddStock({
       symbol: selectedStock.symbol,
@@ -186,6 +189,11 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
       targetPrice: selectedStock.targetPrice,
       stopLoss: selectedStock.stopLoss,
       riskRating: selectedStock.riskRating,
+      predictions: advisor.predictions,
+      targetPrice1Y: advisor.targetPrice1Y,
+      targetPrice3Y: advisor.targetPrice3Y,
+      targetPrice5Y: advisor.targetPrice5Y,
+      targetPrice10Y: advisor.targetPrice10Y,
     });
 
     setIsAddModalOpen(false);
@@ -223,15 +231,57 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     try {
       const symbols = portfolioStocks.map((s) => s.symbol || s.name);
       const quotesMap = await fetchBatchRealtimeQuotes(symbols);
-      for (const stock of portfolioStocks) {
+
+      const updatedList: UserPortfolioStock[] = portfolioStocks.map((stock) => {
         const sym = stock.symbol || stock.name;
         const live = quotesMap[sym];
-        if (live && live.currentPrice > 0) {
-          onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, live.currentPrice);
+        const profile = resolveRealtimeMarketQuote(sym);
+
+        // Active price is real-time current market price
+        const activePrice = (live && live.currentPrice > 0)
+          ? live.currentPrice
+          : (stock.currentPrice > 0 ? stock.currentPrice : profile.currentPrice);
+
+        const dayChange = (live && live.dayChangePercent !== undefined)
+          ? live.dayChangePercent
+          : (profile.dayChangePercent ?? stock.dayChangePercent);
+
+        const advisor = generateAdvisorRecommendation(
+          profile,
+          stock.avgBuyPrice,
+          activePrice,
+          stock.shares
+        );
+
+        return {
+          ...stock,
+          symbol: profile.symbol || stock.symbol,
+          name: profile.name || stock.name,
+          nseKey: profile.nseKey || stock.nseKey,
+          bseKey: profile.bseKey || stock.bseKey,
+          isin: profile.isin || stock.isin,
+          currentPrice: activePrice,
+          dayChangePercent: dayChange,
+          suggestion: advisor.suggestion,
+          suggestionRationale: advisor.rationale,
+          predictions: advisor.predictions,
+          targetPrice1Y: advisor.targetPrice1Y,
+          targetPrice3Y: advisor.targetPrice3Y,
+          targetPrice5Y: advisor.targetPrice5Y,
+          targetPrice10Y: advisor.targetPrice10Y,
+        };
+      });
+
+      if (onBatchUpdateStocks) {
+        onBatchUpdateStocks(updatedList);
+      } else {
+        for (const s of updatedList) {
+          onUpdateStock(s.id, s.shares, s.avgBuyPrice, s.currentPrice);
         }
       }
+
       setValidationSuccessMessage(
-        `Validated ${portfolioStocks.length} stock${portfolioStocks.length === 1 ? '' : 's'} with live NSE/BSE market prices and real-time hold/sell ratings!`
+        `Validated & recalculated all ${updatedList.length} stock${updatedList.length === 1 ? '' : 's'} using live Current Market Prices (CMP). Updated Hold/Sell ratings, P&L, and 1, 3, 5, & 10-year compounding targets!`
       );
       setTimeout(() => {
         setValidationSuccessMessage(null);
@@ -281,11 +331,34 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     }
   };
 
-  // Portfolio Totals Calculations
+  // Portfolio Totals Calculations (Calculated directly from real-time Current Market Prices)
   const totalInvested = portfolioStocks.reduce((sum, s) => sum + s.shares * s.avgBuyPrice, 0);
   const currentTotalValue = portfolioStocks.reduce((sum, s) => sum + s.shares * s.currentPrice, 0);
   const totalPnl = currentTotalValue - totalInvested;
   const totalPnlPercent = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+
+  // Multi-Year Long-Term Compounding Projections (1Y, 3Y, 5Y, 10Y) across all portfolio stocks
+  const totalProjected1Y = portfolioStocks.reduce((sum, s) => {
+    const t = s.targetPrice1Y && s.targetPrice1Y > 0 ? s.targetPrice1Y : (s.currentPrice * 1.18);
+    return sum + t * s.shares;
+  }, 0);
+  const totalProjected3Y = portfolioStocks.reduce((sum, s) => {
+    const t = s.targetPrice3Y && s.targetPrice3Y > 0 ? s.targetPrice3Y : (s.currentPrice * Math.pow(1.17, 3));
+    return sum + t * s.shares;
+  }, 0);
+  const totalProjected5Y = portfolioStocks.reduce((sum, s) => {
+    const t = s.targetPrice5Y && s.targetPrice5Y > 0 ? s.targetPrice5Y : (s.currentPrice * Math.pow(1.185, 5));
+    return sum + t * s.shares;
+  }, 0);
+  const totalProjected10Y = portfolioStocks.reduce((sum, s) => {
+    const t = s.targetPrice10Y && s.targetPrice10Y > 0 ? s.targetPrice10Y : (s.currentPrice * Math.pow(1.175, 10));
+    return sum + t * s.shares;
+  }, 0);
+
+  const upsideTotal1Y = currentTotalValue > 0 ? (((totalProjected1Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
+  const upsideTotal3Y = currentTotalValue > 0 ? (((totalProjected3Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
+  const upsideTotal5Y = currentTotalValue > 0 ? (((totalProjected5Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
+  const upsideTotal10Y = currentTotalValue > 0 ? (((totalProjected10Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
 
   // Rebalance health breakdown
   const vulnerableStocks = portfolioStocks.filter((s) => s.suggestion === 'SELL_EXIT_NOW');
@@ -487,6 +560,106 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Portfolio Multi-Year Long-Term Compounding Forecast (1Y · 3Y · 5Y · 10Y) */}
+      {portfolioStocks.length > 0 && (
+        <div className="bg-gradient-to-r from-slate-900 via-blue-950/40 to-slate-900 border border-cyan-500/40 rounded-xl p-4 sm:p-5 shadow-lg space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+            <div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                  Portfolio Multi-Year Long-Term Wealth Compounding Forecast
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                  Calculated from Live CMP
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Target wealth projection if you hold your {portfolioStocks.length} positions through 1, 3, 5, and 10-year holding horizons and institutional rebalance cycles.
+              </p>
+            </div>
+            <div className="text-left sm:text-right shrink-0">
+              <span className="text-[11px] text-slate-400">Current Portfolio Value (at Live CMP): </span>
+              <strong className="text-sm sm:text-base font-mono font-bold text-emerald-400 ml-1">
+                ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </strong>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* 1-Year Forecast */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 font-medium">1-Year Horizon</span>
+                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">
+                  12-Month Target
+                </span>
+              </div>
+              <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
+                ₹{totalProjected1Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </div>
+              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                <span>+{upsideTotal1Y}% Growth</span>
+                <span className="text-slate-500 text-[10px] font-sans">Index Inflows</span>
+              </div>
+            </div>
+
+            {/* 3-Year Forecast */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 font-medium">3-Year Horizon</span>
+                <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                  36-Month Target
+                </span>
+              </div>
+              <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
+                ₹{totalProjected3Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </div>
+              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                <span>+{upsideTotal3Y}% Growth</span>
+                <span className="text-slate-500 text-[10px] font-sans">EBITDA Ramp</span>
+              </div>
+            </div>
+
+            {/* 5-Year Forecast */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 font-medium">5-Year Horizon</span>
+                <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                  60-Month Target
+                </span>
+              </div>
+              <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
+                ₹{totalProjected5Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </div>
+              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                <span>+{upsideTotal5Y}% Growth</span>
+                <span className="text-slate-500 text-[10px] font-sans">Full Capex Growth</span>
+              </div>
+            </div>
+
+            {/* 10-Year Forecast */}
+            <div className="bg-slate-950/70 border border-cyan-500/40 rounded-lg p-3 space-y-1 bg-gradient-to-br from-slate-950 to-cyan-950/20">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-cyan-300 font-medium">10-Year Wealth Engine</span>
+                <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                  Decade Compounding
+                </span>
+              </div>
+              <div className="text-base sm:text-lg font-bold font-mono text-cyan-300 mt-1">
+                ₹{totalProjected10Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </div>
+              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                <span>+{upsideTotal10Y}% Growth</span>
+                <span className="text-slate-400 text-[10px] font-sans">
+                  {currentTotalValue > 0 ? (totalProjected10Y / currentTotalValue).toFixed(1) : '1.0'}x Capital Multiple
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter and Management Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
@@ -804,6 +977,68 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Multi-Year Long-Term Price Predictions & Compounding Targets (1Y, 3Y, 5Y, 10Y) */}
+                {(() => {
+                  const predictions = stock.predictions && stock.predictions.length > 0
+                    ? stock.predictions
+                    : calculateHorizonPredictions(
+                        resolveRealtimeMarketQuote(stock.symbol || stock.name),
+                        stock.currentPrice,
+                        stock.shares
+                      );
+
+                  return (
+                    <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-800/80 pb-2">
+                        <div className="flex items-center gap-1.5 font-semibold text-white">
+                          <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Long-Term Holding Outlook &amp; Compounding Targets (Based on Live CMP ₹{stock.currentPrice.toFixed(2)})</span>
+                        </div>
+                        <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                          Hold Horizon: 1, 3, 5, &amp; 10 Years
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                        {predictions.map((pred) => (
+                          <div
+                            key={pred.horizon}
+                            className="bg-slate-900/80 p-2.5 rounded border border-slate-800 flex flex-col justify-between space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-semibold text-slate-300">{pred.label}</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                {pred.horizon}
+                              </span>
+                            </div>
+
+                            <div>
+                              <div className="text-sm font-bold font-mono text-emerald-400">
+                                ₹{pred.targetPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </div>
+                              <div className="text-[10px] font-mono text-emerald-300/90 mt-0.5 flex items-center justify-between">
+                                <span>+{pred.upsidePercent}% Upside</span>
+                                <span className="text-slate-400">({pred.cagrPercent}% CAGR)</span>
+                              </div>
+                            </div>
+
+                            <div className="pt-1 border-t border-slate-800/60 text-[10px] text-slate-400 flex items-center justify-between">
+                              <span>Holding Value ({stock.shares} sh):</span>
+                              <strong className="text-white font-mono">
+                                ₹{pred.projectedHoldingValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </strong>
+                            </div>
+
+                            <div className="text-[9px] text-slate-500 line-clamp-1 leading-tight" title={pred.thesis}>
+                              {pred.thesis}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {stock.notes && (
                   <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2 rounded border border-slate-800/60">
