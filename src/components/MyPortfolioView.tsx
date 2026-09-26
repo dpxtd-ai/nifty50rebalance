@@ -7,7 +7,7 @@ import {
   generateAdvisorRecommendation,
   KnownStockProfile
 } from '../data/portfolioPresets.ts';
-import { fetchRealtimeQuote } from '../services/marketDataService.ts';
+import { fetchRealtimeQuote, fetchBatchRealtimeQuotes } from '../services/marketDataService.ts';
 import {
   Briefcase,
   Plus,
@@ -67,28 +67,26 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   // Status feedback for live validation
   const [validationSuccessMessage, setValidationSuccessMessage] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-sync real-time quotes on mount for all holdings (including NALCO, Cochin Shipyard, etc.)
+  // Auto-sync real-time quotes on mount for all holdings
   useEffect(() => {
-    portfolioStocks.forEach((stock) => {
-      const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
-      if (quote && (stock.currentPrice !== quote.currentPrice || stock.dayChangePercent !== quote.dayChangePercent)) {
-        onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
-      }
-    });
+    if (portfolioStocks.length === 0) return;
 
-    // Also fetch live API quotes in background
     (async () => {
-      for (const stock of portfolioStocks) {
-        try {
-          const live = await fetchRealtimeQuote(stock.symbol || stock.name);
-          if (live && live.currentPrice > 0 && Math.abs(live.currentPrice - stock.currentPrice) > 0.05) {
+      const symbols = portfolioStocks.map((s) => s.symbol || s.name);
+      try {
+        const quotesMap = await fetchBatchRealtimeQuotes(symbols);
+        for (const stock of portfolioStocks) {
+          const sym = stock.symbol || stock.name;
+          const live = quotesMap[sym];
+          if (live && live.currentPrice > 0 && Math.abs(live.currentPrice - stock.currentPrice) > 0.01) {
             onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, live.currentPrice);
           }
-        } catch {
-          // keep calibrated quote
         }
+      } catch {
+        // keep calibrated quotes
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,17 +102,57 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     setSharesInput('100');
     setBuyPriceInput('');
     setNotesInput('');
+    setIsLoadingQuote(false);
   };
 
-  const handleSelectStock = (profile: KnownStockProfile) => {
+  const handleSelectStock = async (profile: KnownStockProfile) => {
     setSelectedStock(profile);
     setBuyPriceInput('');
+    setIsLoadingQuote(true);
+    try {
+      const live = await fetchRealtimeQuote(profile.symbol || profile.name);
+      if (live && live.currentPrice > 0) {
+        setSelectedStock((prev) =>
+          prev && (prev.symbol === profile.symbol || prev.name === profile.name)
+            ? {
+                ...prev,
+                currentPrice: live.currentPrice,
+                dayChangePercent: live.dayChangePercent,
+              }
+            : prev
+        );
+      }
+    } catch {
+      // keep catalog price
+    } finally {
+      setIsLoadingQuote(false);
+    }
   };
 
-  const handleSelectCustomQuery = (query: string) => {
+  const handleSelectCustomQuery = async (query: string) => {
     const resolved = resolveRealtimeMarketQuote(query);
     setSelectedStock(resolved);
     setBuyPriceInput('');
+    setIsLoadingQuote(true);
+    try {
+      const live = await fetchRealtimeQuote(query);
+      if (live && live.currentPrice > 0) {
+        setSelectedStock((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentPrice: live.currentPrice,
+                dayChangePercent: live.dayChangePercent,
+                isFallback: false,
+              }
+            : prev
+        );
+      }
+    } catch {
+      // keep resolved quote
+    } finally {
+      setIsLoadingQuote(false);
+    }
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -154,6 +192,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     setSelectedStock(null);
     setSearchQuery('');
     setNotesInput('');
+    setIsLoadingQuote(false);
   };
 
   // Start editing both shares quantity AND average purchase price
@@ -182,14 +221,14 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const handleValidateAllWithRealtimeData = async () => {
     setIsValidating(true);
     try {
+      const symbols = portfolioStocks.map((s) => s.symbol || s.name);
+      const quotesMap = await fetchBatchRealtimeQuotes(symbols);
       for (const stock of portfolioStocks) {
-        const quote = await fetchRealtimeQuote(stock.symbol || stock.name);
-        if (quote && quote.currentPrice > 0) {
-          onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
+        const sym = stock.symbol || stock.name;
+        const live = quotesMap[sym];
+        if (live && live.currentPrice > 0) {
+          onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, live.currentPrice);
         }
-      }
-      if (onRefreshQuotes) {
-        onRefreshQuotes();
       }
       setValidationSuccessMessage(
         `Validated ${portfolioStocks.length} stock${portfolioStocks.length === 1 ? '' : 's'} with live NSE/BSE market prices and real-time hold/sell ratings!`
@@ -200,7 +239,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
     } catch {
       portfolioStocks.forEach((stock) => {
         const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
-        if (quote) {
+        if (quote && !quote.isFallback) {
           onUpdateStock(stock.id, stock.shares, stock.avgBuyPrice, quote.currentPrice);
         }
       });
@@ -906,21 +945,30 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                           {selectedStock.bseKey}
                         </span>
                       </div>
-                      <div className="text-right">
-                        <span className="text-slate-400 text-xs mr-1.5">Live Real-Time Market Price (CMP):</span>
-                        <strong className="text-emerald-400 font-mono text-base">
-                          ₹{selectedStock.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </strong>
-                        <span className={`text-[11px] font-mono ml-1.5 ${selectedStock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          ({selectedStock.dayChangePercent >= 0 ? '+' : ''}{selectedStock.dayChangePercent}%)
-                        </span>
+                      <div className="text-right flex items-center justify-end">
+                        {isLoadingQuote ? (
+                          <span className="flex items-center gap-1.5 text-xs text-amber-300 font-mono animate-pulse">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                            Fetching live quote...
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-slate-400 text-xs mr-1.5">Live Real-Time Market Price (CMP):</span>
+                            <strong className="text-emerald-400 font-mono text-base">
+                              ₹{selectedStock.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </strong>
+                            <span className={`text-[11px] font-mono ml-1.5 ${selectedStock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              ({selectedStock.dayChangePercent >= 0 ? '+' : ''}{selectedStock.dayChangePercent}%)
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Real-time market price is locked at <strong>₹{selectedStock.currentPrice.toFixed(2)}</strong>. You only need to enter your quantity and purchase price.</span>
+                    <span>Real-time market price is {isLoadingQuote ? 'loading...' : <>live at <strong>₹{selectedStock.currentPrice.toFixed(2)}</strong></>}. Enter your purchase price or leave blank to use the live CMP.</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

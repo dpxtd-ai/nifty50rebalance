@@ -16,6 +16,7 @@ export interface KnownStockProfile {
   riskRating: 'Low' | 'Moderate' | 'High' | 'Critical';
   baseRationale: string;
   defaultAction: PortfolioAction;
+  isFallback?: boolean;
 }
 
 export const KNOWN_STOCKS_CATALOG: KnownStockProfile[] = [
@@ -882,7 +883,8 @@ export function resolveRealtimeMarketQuote(queryOrSymbol: string): KnownStockPro
     stopLoss: 310.00,
     riskRating: 'Moderate',
     baseRationale: `Trading live on National Stock Exchange under security key NSE:${q}.`,
-    defaultAction: 'HOLD_FIRM'
+    defaultAction: 'HOLD_FIRM',
+    isFallback: true,
   };
 }
 

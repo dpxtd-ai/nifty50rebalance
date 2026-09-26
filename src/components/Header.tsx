@@ -12,6 +12,7 @@ interface HeaderProps {
   onTriggerLiveAlert: () => void;
   lastUpdated: string;
   portfolioCount: number;
+  onRefreshPortfolio?: () => Promise<void> | void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSound,
   onTriggerLiveAlert,
   portfolioCount,
+  onRefreshPortfolio,
 }) => {
   const { indices, lastSyncedTime, refreshMarketData, isLiveConnected } = useLiveMarket();
   const [isRefreshingMarket, setIsRefreshingMarket] = React.useState<boolean>(false);
@@ -29,7 +31,10 @@ export const Header: React.FC<HeaderProps> = ({
   const handleManualRefresh = async () => {
     setIsRefreshingMarket(true);
     try {
-      await refreshMarketData();
+      await Promise.all([
+        refreshMarketData(),
+        onRefreshPortfolio ? onRefreshPortfolio() : Promise.resolve(),
+      ]);
     } finally {
       setTimeout(() => setIsRefreshingMarket(false), 600);
     }

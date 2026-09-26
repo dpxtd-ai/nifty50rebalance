@@ -27,7 +27,7 @@ import {
   generateAdvisorRecommendation,
   resolveRealtimeMarketQuote
 } from './data/portfolioPresets.ts';
-import { fetchBatchRealtimeQuotes } from './services/marketDataService.ts';
+import { fetchBatchRealtimeQuotes, fetchRealtimeQuote } from './services/marketDataService.ts';
 import { LiveMarketProvider, useLiveMarket } from './context/LiveMarketContext.tsx';
 import { UpcomingInclusionStock, ExclusionDelistingStock, RebalanceAlert, NavTab, FOTrendStock, UserPortfolioStock } from './types/index.ts';
 import { playAlertChime } from './utils/audio.ts';
@@ -55,11 +55,14 @@ function AppContent() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Auto-sync real-time market quotes so holdings like NALCO or COCHIN SHIPYARD never have stale CMPs
+          // Auto-sync real-time market quotes without destroying custom or live market prices
           return parsed.map((stock: UserPortfolioStock) => {
             const quote = resolveRealtimeMarketQuote(stock.symbol || stock.name);
             if (quote) {
-              const advisor = generateAdvisorRecommendation(quote, stock.avgBuyPrice, quote.currentPrice);
+              const activePrice = (!quote.isFallback && quote.currentPrice > 0)
+                ? quote.currentPrice
+                : (stock.currentPrice > 0 ? stock.currentPrice : quote.currentPrice);
+              const advisor = generateAdvisorRecommendation(quote, stock.avgBuyPrice, activePrice);
               return {
                 ...stock,
                 symbol: quote.symbol,
@@ -67,8 +70,8 @@ function AppContent() {
                 nseKey: quote.nseKey,
                 bseKey: quote.bseKey,
                 isin: quote.isin,
-                currentPrice: quote.currentPrice,
-                dayChangePercent: quote.dayChangePercent,
+                currentPrice: activePrice,
+                dayChangePercent: !quote.isFallback ? quote.dayChangePercent : stock.dayChangePercent,
                 rebalanceStatus: quote.rebalanceStatus,
                 targetPrice: quote.targetPrice,
                 stopLoss: quote.stopLoss,
@@ -111,40 +114,78 @@ function AppContent() {
     }
   }, [portfolioStocks]);
 
+  const handleRefreshAllPortfolioQuotes = async () => {
+    // 1. Immediately sync with calibrated profiles without overwriting custom/live CMPs with 350 fallback
+    setPortfolioStocks((prev) =>
+      prev.map((item) => {
+        const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
+        const priceToUse = !profile.isFallback && profile.currentPrice > 0
+          ? profile.currentPrice
+          : (item.currentPrice > 0 ? item.currentPrice : profile.currentPrice);
+        const dayChangeToUse = !profile.isFallback ? profile.dayChangePercent : item.dayChangePercent;
+        const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, priceToUse);
+        return {
+          ...item,
+          symbol: profile.symbol,
+          name: profile.name,
+          nseKey: profile.nseKey,
+          bseKey: profile.bseKey,
+          isin: profile.isin,
+          currentPrice: priceToUse,
+          dayChangePercent: dayChangeToUse,
+          suggestion: advisor.suggestion,
+          suggestionRationale: advisor.rationale,
+          targetPrice: profile.targetPrice,
+          stopLoss: profile.stopLoss,
+          riskRating: profile.riskRating,
+        };
+      })
+    );
+
+    // 2. Fetch live quotes from API in background
+    try {
+      const symbols = portfolioStocks.map((s) => s.symbol || s.name);
+      if (symbols.length > 0) {
+        const liveQuotes = await fetchBatchRealtimeQuotes(symbols);
+        setPortfolioStocks((prev) =>
+          prev.map((item) => {
+            const sym = item.symbol || item.name;
+            const live = liveQuotes[sym];
+            if (live && live.currentPrice > 0 && !live.isFallback) {
+              const profile = resolveRealtimeMarketQuote(sym);
+              const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice);
+              return {
+                ...item,
+                currentPrice: live.currentPrice,
+                dayChangePercent: live.dayChangePercent,
+                suggestion: advisor.suggestion,
+                suggestionRationale: advisor.rationale,
+              };
+            }
+            return item;
+          })
+        );
+      }
+    } catch {
+      // already synced
+    }
+
+    if (soundEnabled) {
+      playAlertChime();
+    }
+  };
+
   // Synchronize any existing saved portfolio holdings to current real-time prices on mount
   useEffect(() => {
     if (portfolioStocks.length > 0) {
-      setPortfolioStocks((prev) =>
-        prev.map((item) => {
-          const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
-          if (profile && (item.currentPrice !== profile.currentPrice || item.dayChangePercent !== profile.dayChangePercent)) {
-            const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, profile.currentPrice);
-            return {
-              ...item,
-              symbol: profile.symbol,
-              name: profile.name,
-              nseKey: profile.nseKey,
-              bseKey: profile.bseKey,
-              isin: profile.isin,
-              currentPrice: profile.currentPrice,
-              dayChangePercent: profile.dayChangePercent,
-              suggestion: advisor.suggestion,
-              suggestionRationale: advisor.rationale,
-              targetPrice: profile.targetPrice,
-              stopLoss: profile.stopLoss,
-              riskRating: profile.riskRating,
-            };
-          }
-          return item;
-        })
-      );
+      handleRefreshAllPortfolioQuotes();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Automatic 30-second refresh timer for F&O timing ticks
+  // Automatic 30-second refresh timer for F&O timing ticks and portfolio quotes
   useEffect(() => {
-    if (activeTab !== 'fo_trends' || !autoRefreshEnabled) {
+    if (!autoRefreshEnabled) {
       setAutoRefreshSecondsLeft(30);
       return;
     }
@@ -152,7 +193,11 @@ function AppContent() {
     const timer = setInterval(() => {
       setAutoRefreshSecondsLeft((prev) => {
         if (prev <= 1) {
-          handleRefreshFOTicks();
+          if (activeTab === 'fo_trends') {
+            handleRefreshFOTicks();
+          } else if (activeTab === 'portfolio') {
+            handleRefreshAllPortfolioQuotes();
+          }
           return 30;
         }
         return prev - 1;
@@ -160,7 +205,7 @@ function AppContent() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [activeTab, autoRefreshEnabled]);
+  }, [activeTab, autoRefreshEnabled, portfolioStocks]);
 
   const handleAddPortfolioStock = (stockData: Omit<UserPortfolioStock, 'id'>) => {
     const newStock: UserPortfolioStock = {
@@ -171,6 +216,33 @@ function AppContent() {
     if (soundEnabled) {
       playAlertChime();
     }
+
+    // Immediately fetch and apply the true real-time market price for the added stock
+    (async () => {
+      try {
+        const live = await fetchRealtimeQuote(newStock.symbol || newStock.name);
+        if (live && live.currentPrice > 0) {
+          setPortfolioStocks((prev) =>
+            prev.map((item) => {
+              if (item.id === newStock.id) {
+                const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
+                const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice);
+                return {
+                  ...item,
+                  currentPrice: live.currentPrice,
+                  dayChangePercent: live.dayChangePercent,
+                  suggestion: advisor.suggestion,
+                  suggestionRationale: advisor.rationale,
+                };
+              }
+              return item;
+            })
+          );
+        }
+      } catch {
+        // preserve submitted quote
+      }
+    })();
   };
 
   const handleRemovePortfolioStock = (id: string) => {
@@ -193,7 +265,9 @@ function AppContent() {
       prev.map((item) => {
         if (item.id === id) {
           const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
-          const activePrice = currentPrice !== undefined ? currentPrice : (profile ? profile.currentPrice : item.currentPrice);
+          const activePrice = currentPrice !== undefined
+            ? currentPrice
+            : (item.currentPrice > 0 ? item.currentPrice : (profile ? profile.currentPrice : item.currentPrice));
           const advisor = profile
             ? generateAdvisorRecommendation(profile, avgBuyPrice, activePrice)
             : { suggestion: item.suggestion, rationale: item.suggestionRationale };
@@ -214,63 +288,6 @@ function AppContent() {
         return item;
       })
     );
-  };
-
-  const handleRefreshAllPortfolioQuotes = async () => {
-    // 1. Immediately sync with latest calibrated real-time data table
-    setPortfolioStocks((prev) =>
-      prev.map((item) => {
-        const profile = resolveRealtimeMarketQuote(item.symbol || item.name);
-        const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, profile.currentPrice);
-        return {
-          ...item,
-          symbol: profile.symbol,
-          name: profile.name,
-          nseKey: profile.nseKey,
-          bseKey: profile.bseKey,
-          isin: profile.isin,
-          currentPrice: profile.currentPrice,
-          dayChangePercent: profile.dayChangePercent,
-          suggestion: advisor.suggestion,
-          suggestionRationale: advisor.rationale,
-          targetPrice: profile.targetPrice,
-          stopLoss: profile.stopLoss,
-          riskRating: profile.riskRating,
-        };
-      })
-    );
-
-    // 2. Fetch live quotes from API in background
-    try {
-      const symbols = portfolioStocks.map((s) => s.symbol || s.name);
-      if (symbols.length > 0) {
-        const liveQuotes = await fetchBatchRealtimeQuotes(symbols);
-        setPortfolioStocks((prev) =>
-          prev.map((item) => {
-            const sym = item.symbol || item.name;
-            const live = liveQuotes[sym];
-            if (live && live.currentPrice > 0) {
-              const profile = resolveRealtimeMarketQuote(sym);
-              const advisor = generateAdvisorRecommendation(profile, item.avgBuyPrice, live.currentPrice);
-              return {
-                ...item,
-                currentPrice: live.currentPrice,
-                dayChangePercent: live.dayChangePercent,
-                suggestion: advisor.suggestion,
-                suggestionRationale: advisor.rationale,
-              };
-            }
-            return item;
-          })
-        );
-      }
-    } catch {
-      // already synced
-    }
-
-    if (soundEnabled) {
-      playAlertChime();
-    }
   };
 
   const handleClearPortfolio = () => {
@@ -502,6 +519,7 @@ function AppContent() {
         onTriggerLiveAlert={handleTriggerLiveAlert}
         lastUpdated={lastUpdated}
         portfolioCount={portfolioStocks.length}
+        onRefreshPortfolio={handleRefreshAllPortfolioQuotes}
       />
 
       {/* Real-Time Alert Banner if new circular arrives */}
