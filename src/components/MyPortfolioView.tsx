@@ -30,7 +30,9 @@ import {
   Search,
   Check,
   CheckCheck,
-  Clock
+  Clock,
+  X,
+  ExternalLink
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
@@ -72,6 +74,10 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Modals for Multi-Year Compounding Forecast & Individual Stock Outlook
+  const [isForecastModalOpen, setIsForecastModalOpen] = useState<boolean>(false);
+  const [selectedStockForOutlook, setSelectedStockForOutlook] = useState<UserPortfolioStock | null>(null);
 
   // Auto-sync real-time quotes on mount for all holdings
   useEffect(() => {
@@ -422,7 +428,7 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         className="hidden"
       />
 
-      {/* Header Banner - Updated to "Portfolio Advisor" */}
+      {/* Header Banner - Updated to "Portfolio Advisor" with Clickable Wealth Forecast Modal */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium tracking-wide uppercase">
@@ -430,12 +436,23 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
             <span aria-hidden="true">·</span>
             <span>DAILY REBALANCE ADVISORY</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1 flex items-center gap-2">
-            <span>Portfolio Advisor</span>
-            <span className="text-xs font-sans font-medium text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/60 flex items-center gap-1">
-              <Lock className="w-3 h-3 text-emerald-400" />
-              100% Private (Saved Locally)
-            </span>
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsForecastModalOpen(true)}
+              className="group flex flex-wrap items-center gap-2 text-left cursor-pointer hover:opacity-90 transition-all focus:outline-none"
+              title="Click to view Portfolio Multi-Year Long-Term Wealth Compounding Forecast"
+            >
+              <span className="group-hover:text-cyan-300 transition-colors">Portfolio Advisor</span>
+              <span className="text-xs font-sans font-medium text-emerald-300 bg-emerald-950/70 hover:bg-emerald-900/80 px-2.5 py-1 rounded-full border border-emerald-500/40 flex items-center gap-1.5 transition-all shadow-sm">
+                <Lock className="w-3 h-3 text-emerald-400" />
+                <span>100% Private (Saved Locally)</span>
+                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-500/40 flex items-center gap-1 ml-0.5 group-hover:bg-cyan-500/30">
+                  <TrendingUp className="w-3 h-3 text-cyan-400" />
+                  Forecast ↗
+                </span>
+              </span>
+            </button>
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
             Real-time algorithmic advisor for your holdings. Live market prices and daily institutional rebalance ratings determine optimal HOLD or SELL execution.
@@ -444,6 +461,17 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
 
         {/* Top Actions Toolbar */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 whitespace-nowrap">
+          {portfolioStocks.length > 0 && (
+            <button
+              onClick={() => setIsForecastModalOpen(true)}
+              title="View Portfolio Multi-Year Long-Term Wealth Compounding Forecast"
+              className="px-2.5 py-1.5 sm:py-2 text-xs font-medium text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 rounded transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Wealth Forecast</span>
+            </button>
+          )}
+
           {portfolioStocks.length > 0 && (
             <button
               onClick={handleValidateAllWithRealtimeData}
@@ -483,24 +511,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
             <Plus className="w-3.5 h-3.5" />
             <span>Add Stock</span>
           </button>
-        </div>
-      </div>
-
-      {/* Long-Term Horizon & 6-Month Cooling Period Principle Banner */}
-      <div className="p-3.5 bg-blue-950/40 border border-blue-500/40 rounded-lg text-xs text-blue-200 flex items-start gap-3 shadow-sm">
-        <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-white tracking-wide">
-              LONG-TERM INVESTMENT HORIZON: MINIMUM 6-MONTH COOLING PERIOD ENFORCED
-            </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-              Semi-Annual Rebalance Calibration
-            </span>
-          </div>
-          <p className="text-slate-300 leading-relaxed text-[11px]">
-            This Portfolio Advisor is <strong>not for intraday or short-term swing trading</strong>. Quality Nifty 50 inclusion and core compounder stocks require a minimum <strong>6-month cooling &amp; compounding window</strong> to absorb institutional passive ETF inflows and navigate semi-annual index review cycles. Normal interim market drawdowns (-5% to -15%) during the cooling period represent rupee-cost averaging opportunities rather than premature exit triggers. Only structural index exclusions warrant selling.
-          </p>
         </div>
       </div>
 
@@ -560,106 +570,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Portfolio Multi-Year Long-Term Compounding Forecast (1Y · 3Y · 5Y · 10Y) */}
-      {portfolioStocks.length > 0 && (
-        <div className="bg-gradient-to-r from-slate-900 via-blue-950/40 to-slate-900 border border-cyan-500/40 rounded-xl p-4 sm:p-5 shadow-lg space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-            <div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  Portfolio Multi-Year Long-Term Wealth Compounding Forecast
-                </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  Calculated from Live CMP
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Target wealth projection if you hold your {portfolioStocks.length} positions through 1, 3, 5, and 10-year holding horizons and institutional rebalance cycles.
-              </p>
-            </div>
-            <div className="text-left sm:text-right shrink-0">
-              <span className="text-[11px] text-slate-400">Current Portfolio Value (at Live CMP): </span>
-              <strong className="text-sm sm:text-base font-mono font-bold text-emerald-400 ml-1">
-                ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </strong>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* 1-Year Forecast */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-medium">1-Year Horizon</span>
-                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">
-                  12-Month Target
-                </span>
-              </div>
-              <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
-                ₹{totalProjected1Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                <span>+{upsideTotal1Y}% Growth</span>
-                <span className="text-slate-500 text-[10px] font-sans">Index Inflows</span>
-              </div>
-            </div>
-
-            {/* 3-Year Forecast */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-medium">3-Year Horizon</span>
-                <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                  36-Month Target
-                </span>
-              </div>
-              <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
-                ₹{totalProjected3Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                <span>+{upsideTotal3Y}% Growth</span>
-                <span className="text-slate-500 text-[10px] font-sans">EBITDA Ramp</span>
-              </div>
-            </div>
-
-            {/* 5-Year Forecast */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-medium">5-Year Horizon</span>
-                <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
-                  60-Month Target
-                </span>
-              </div>
-              <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
-                ₹{totalProjected5Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                <span>+{upsideTotal5Y}% Growth</span>
-                <span className="text-slate-500 text-[10px] font-sans">Full Capex Growth</span>
-              </div>
-            </div>
-
-            {/* 10-Year Forecast */}
-            <div className="bg-slate-950/70 border border-cyan-500/40 rounded-lg p-3 space-y-1 bg-gradient-to-br from-slate-950 to-cyan-950/20">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-cyan-300 font-medium">10-Year Wealth Engine</span>
-                <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                  Decade Compounding
-                </span>
-              </div>
-              <div className="text-base sm:text-lg font-bold font-mono text-cyan-300 mt-1">
-                ₹{totalProjected10Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </div>
-              <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                <span>+{upsideTotal10Y}% Growth</span>
-                <span className="text-slate-400 text-[10px] font-sans">
-                  {currentTotalValue > 0 ? (totalProjected10Y / currentTotalValue).toFixed(1) : '1.0'}x Capital Multiple
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Filter and Management Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
@@ -766,12 +676,20 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                 {/* Top Row: Symbol, Valid Keys, Action Advice */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-lg font-bold font-mono text-white">
-                      {stock.symbol}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">
-                      {stock.name}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStockForOutlook(stock)}
+                      className="group text-left cursor-pointer focus:outline-none flex flex-wrap items-baseline gap-2 hover:opacity-90 transition-all"
+                      title="Click to view Long-Term Holding Outlook & Compounding Targets"
+                    >
+                      <span className="text-lg font-bold font-mono text-white group-hover:text-cyan-300 group-hover:underline transition-colors flex items-center gap-1.5">
+                        {stock.symbol}
+                        <ExternalLink className="w-3.5 h-3.5 text-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium group-hover:text-slate-200 transition-colors">
+                        {stock.name}
+                      </span>
+                    </button>
                     {stock.nseKey && (
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                         {stock.nseKey}
@@ -785,14 +703,19 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     <span className={`text-[11px] font-sans px-2 py-0.5 rounded border ${getRebalanceStatusBadgeClass(stock.rebalanceStatus)}`}>
                       {stock.rebalanceStatus}
                     </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                      Min. 6-Mo Cooling
-                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {getActionBadge(stock.suggestion)}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStockForOutlook(stock)}
+                      title="View Long-Term Holding Outlook & Compounding Targets"
+                      className="px-2 py-1 text-xs text-cyan-300 hover:text-white bg-cyan-950/40 hover:bg-cyan-900/60 rounded border border-cyan-500/40 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <TrendingUp className="w-3 h-3 text-cyan-400" />
+                      <span>Targets</span>
+                    </button>
                     <button
                       onClick={() => handleStartEdit(stock)}
                       title="Edit shares quantity and purchase price"
@@ -827,22 +750,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   </div>
                   <div className="leading-relaxed opacity-95">
                     {stock.suggestionRationale}
-                  </div>
-                </div>
-
-                {/* 6-Month Cooling Period & Long-Term Horizon Status */}
-                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded bg-slate-950/70 border border-slate-800 text-[11px]">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    <span className="font-semibold text-white">Investment Horizon:</span>
-                    <span className="text-cyan-300 font-medium">Minimum 6-Month Cooling Period</span>
-                    <span className="text-slate-600">·</span>
-                    <span className="text-slate-400">Intraday noise filtered out · Compounding through semi-annual Nifty 50 review cycles</span>
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-[10px]">
-                    <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
-                      180-Day Institutional Compounding Window
-                    </span>
                   </div>
                 </div>
 
@@ -942,14 +849,18 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80">
+                  <div
+                    onClick={() => setSelectedStockForOutlook(stock)}
+                    className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80 hover:border-cyan-500/40 cursor-pointer transition-colors group"
+                    title="Click to view Long-Term Holding Outlook & Compounding Targets"
+                  >
                     <div className="text-slate-400 text-[11px] flex items-center justify-between">
-                      <span>Current Market Price</span>
+                      <span className="group-hover:text-cyan-300 transition-colors">Current Market Price</span>
                       <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                        Live Quote
+                        Live Quote ↗
                       </span>
                     </div>
-                    <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums">
+                    <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums group-hover:text-cyan-300 transition-colors">
                       ₹{stock.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                     <div className={`text-[10px] font-mono mt-0.5 ${stock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -977,68 +888,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     </div>
                   </div>
                 </div>
-
-                {/* Multi-Year Long-Term Price Predictions & Compounding Targets (1Y, 3Y, 5Y, 10Y) */}
-                {(() => {
-                  const predictions = stock.predictions && stock.predictions.length > 0
-                    ? stock.predictions
-                    : calculateHorizonPredictions(
-                        resolveRealtimeMarketQuote(stock.symbol || stock.name),
-                        stock.currentPrice,
-                        stock.shares
-                      );
-
-                  return (
-                    <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 space-y-2.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-800/80 pb-2">
-                        <div className="flex items-center gap-1.5 font-semibold text-white">
-                          <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Long-Term Holding Outlook &amp; Compounding Targets (Based on Live CMP ₹{stock.currentPrice.toFixed(2)})</span>
-                        </div>
-                        <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                          Hold Horizon: 1, 3, 5, &amp; 10 Years
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
-                        {predictions.map((pred) => (
-                          <div
-                            key={pred.horizon}
-                            className="bg-slate-900/80 p-2.5 rounded border border-slate-800 flex flex-col justify-between space-y-1.5"
-                          >
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-semibold text-slate-300">{pred.label}</span>
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                                {pred.horizon}
-                              </span>
-                            </div>
-
-                            <div>
-                              <div className="text-sm font-bold font-mono text-emerald-400">
-                                ₹{pred.targetPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </div>
-                              <div className="text-[10px] font-mono text-emerald-300/90 mt-0.5 flex items-center justify-between">
-                                <span>+{pred.upsidePercent}% Upside</span>
-                                <span className="text-slate-400">({pred.cagrPercent}% CAGR)</span>
-                              </div>
-                            </div>
-
-                            <div className="pt-1 border-t border-slate-800/60 text-[10px] text-slate-400 flex items-center justify-between">
-                              <span>Holding Value ({stock.shares} sh):</span>
-                              <strong className="text-white font-mono">
-                                ₹{pred.projectedHoldingValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                              </strong>
-                            </div>
-
-                            <div className="text-[9px] text-slate-500 line-clamp-1 leading-tight" title={pred.thesis}>
-                              {pred.thesis}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
 
                 {stock.notes && (
                   <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2 rounded border border-slate-800/60">
@@ -1294,6 +1143,509 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Portfolio Multi-Year Long-Term Wealth Compounding Forecast Modal */}
+      {isForecastModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
+          onClick={() => setIsForecastModalOpen(false)}
+        >
+          <div
+            className="bg-slate-900 border border-cyan-500/40 rounded-2xl w-full max-w-4xl shadow-2xl p-5 sm:p-6 space-y-5 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-slate-800">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                    Portfolio Multi-Year Long-Term Wealth Compounding Forecast
+                  </h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                    Calculated from Live CMP
+                  </span>
+                  <span>·</span>
+                  <span className="text-emerald-400 flex items-center gap-1 font-sans">
+                    <Lock className="w-3 h-3" />
+                    100% Private (Saved Locally)
+                  </span>
+                  <span>·</span>
+                  <span>{portfolioStocks.length} Holdings Analyzed</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsForecastModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Current Value vs Invested Summary Banner */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+              <div>
+                <div className="text-[11px] text-slate-400">Current Portfolio Value</div>
+                <div className="text-base sm:text-lg font-bold font-mono text-emerald-400 mt-0.5 tabular-nums">
+                  ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400">Total Invested Capital</div>
+                <div className="text-base sm:text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
+                  ₹{totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400">Unrealized Net P&amp;L</div>
+                <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400">Overall Portfolio Return</div>
+                <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+
+            {/* 4 Compounding Horizon Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* 1-Year Forecast */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-200 font-semibold">1-Year Horizon</span>
+                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                    12-Month Target
+                  </span>
+                </div>
+                <div className="text-lg sm:text-xl font-bold font-mono text-white">
+                  ₹{totalProjected1Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                  <span>+{upsideTotal1Y}% Growth</span>
+                  <span className="text-slate-400 text-[10px] font-sans">Index Inflows</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
+                  Initial institutional ETF weight adjustments &amp; semi-annual rebalance momentum.
+                </p>
+              </div>
+
+              {/* 3-Year Forecast */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-200 font-semibold">3-Year Horizon</span>
+                  <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+                    36-Month Target
+                  </span>
+                </div>
+                <div className="text-lg sm:text-xl font-bold font-mono text-white">
+                  ₹{totalProjected3Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                  <span>+{upsideTotal3Y}% Growth</span>
+                  <span className="text-slate-400 text-[10px] font-sans">EBITDA Ramp</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
+                  Compound earnings expansion, market share consolidation, and operating leverage.
+                </p>
+              </div>
+
+              {/* 5-Year Forecast */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-200 font-semibold">5-Year Horizon</span>
+                  <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                    60-Month Target
+                  </span>
+                </div>
+                <div className="text-lg sm:text-xl font-bold font-mono text-white">
+                  ₹{totalProjected5Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                  <span>+{upsideTotal5Y}% Growth</span>
+                  <span className="text-slate-400 text-[10px] font-sans">Capex Maturation</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
+                  Full capital expenditure cycle yields free cash flows with institutional compounding.
+                </p>
+              </div>
+
+              {/* 10-Year Forecast */}
+              <div className="bg-gradient-to-br from-slate-950 to-cyan-950/30 border border-cyan-500/40 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-cyan-300 font-semibold">10-Year Wealth Engine</span>
+                  <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    Decade Compounding
+                  </span>
+                </div>
+                <div className="text-lg sm:text-xl font-bold font-mono text-cyan-300">
+                  ₹{totalProjected10Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
+                  <span>+{upsideTotal10Y}% Growth</span>
+                  <span className="text-slate-400 text-[10px] font-sans">
+                    {currentTotalValue > 0 ? (totalProjected10Y / currentTotalValue).toFixed(1) : '1.0'}x Multiple
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-800/80">
+                  Complete secular compounder run capturing decadal Indian GDP and corporate earnings growth.
+                </p>
+              </div>
+            </div>
+
+            {/* Individual Stock Compounding Breakdown Table */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Holding-by-Holding Compounding Breakdown (Click any stock to inspect)</span>
+                </h4>
+                <span className="text-[11px] text-slate-500">
+                  {portfolioStocks.length} Stocks in Portfolio
+                </span>
+              </div>
+
+              {portfolioStocks.length === 0 ? (
+                <div className="p-5 text-center text-xs text-slate-500 bg-slate-950 rounded-lg border border-slate-800">
+                  No stocks added to portfolio yet. Click "Add Stock" to begin tracking.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-slate-800">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono text-[11px]">
+                        <th className="py-2.5 px-3">Stock</th>
+                        <th className="py-2.5 px-3">Shares</th>
+                        <th className="py-2.5 px-3">Live CMP</th>
+                        <th className="py-2.5 px-3">Current Val</th>
+                        <th className="py-2.5 px-3 text-cyan-300">1Y Target</th>
+                        <th className="py-2.5 px-3 text-blue-300">3Y Target</th>
+                        <th className="py-2.5 px-3 text-indigo-300">5Y Target</th>
+                        <th className="py-2.5 px-3 text-amber-300">10Y Target</th>
+                        <th className="py-2.5 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {portfolioStocks.map((stock) => {
+                        const preds = stock.predictions && stock.predictions.length > 0
+                          ? stock.predictions
+                          : calculateHorizonPredictions(
+                              resolveRealtimeMarketQuote(stock.symbol || stock.name),
+                              stock.currentPrice,
+                              stock.shares
+                            );
+                        const p1Y = preds.find((p) => p.horizon === '1Y');
+                        const p3Y = preds.find((p) => p.horizon === '3Y');
+                        const p5Y = preds.find((p) => p.horizon === '5Y');
+                        const p10Y = preds.find((p) => p.horizon === '10Y');
+                        const currentVal = stock.shares * stock.currentPrice;
+
+                        return (
+                          <tr
+                            key={stock.id}
+                            onClick={() => {
+                              setSelectedStockForOutlook(stock);
+                              setIsForecastModalOpen(false);
+                            }}
+                            className="hover:bg-slate-800/60 cursor-pointer transition-colors group"
+                          >
+                            <td className="py-2.5 px-3 font-sans">
+                              <div className="font-bold font-mono text-white group-hover:text-cyan-300 flex items-center gap-1">
+                                {stock.symbol}
+                                <ExternalLink className="w-3 h-3 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                                {stock.name}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-300">
+                              {stock.shares}
+                            </td>
+                            <td className="py-2.5 px-3 text-white font-semibold">
+                              ₹{stock.currentPrice.toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-200">
+                              ₹{currentVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="py-2.5 px-3 text-cyan-300">
+                              ₹{p1Y?.targetPrice.toFixed(2) || (stock.currentPrice * 1.18).toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-blue-300">
+                              ₹{p3Y?.targetPrice.toFixed(2) || (stock.currentPrice * 1.6).toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-indigo-300">
+                              ₹{p5Y?.targetPrice.toFixed(2) || (stock.currentPrice * 2.33).toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-amber-300 font-bold">
+                              ₹{p10Y?.targetPrice.toFixed(2) || (stock.currentPrice * 5.0).toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <span className="text-[10px] font-sans text-cyan-400 group-hover:underline">
+                                View Outlook &rarr;
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Philosophy & Minimum 6-Month Cooling Period Principle */}
+            <div className="p-3.5 bg-blue-950/40 border border-blue-500/40 rounded-xl text-xs text-blue-200 space-y-1.5">
+              <div className="flex items-center gap-2 font-semibold text-white">
+                <Clock className="w-4 h-4 text-cyan-400" />
+                <span>Long-Term Holding Horizon: Minimum 6-Month Cooling Period Enforced</span>
+              </div>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                This Portfolio Advisor is engineered exclusively for long-term compounders. High-quality Nifty 50 constituents and candidate inclusions require at least a <strong>6-month cooling &amp; compounding window</strong> to absorb institutional passive ETF inflows and navigate semi-annual index rebalance cycles. Routine market pullbacks (-5% to -15%) during the cooling period represent accumulation opportunities rather than premature exit triggers.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={handleExportPortfolio}
+                className="px-3 py-1.5 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Export Projections (.json)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsForecastModalOpen(false)}
+                className="px-5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded font-sans cursor-pointer transition-colors shadow-sm"
+              >
+                Close Forecast
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Individual Stock Long-Term Holding Outlook & Compounding Targets Modal */}
+      {selectedStockForOutlook && (() => {
+        // Sync with the latest stock state from portfolioStocks if available
+        const stock = portfolioStocks.find((s) => s.id === selectedStockForOutlook.id) || selectedStockForOutlook;
+        const holdingValue = stock.shares * stock.currentPrice;
+        const investedValue = stock.shares * stock.avgBuyPrice;
+        const stockPnl = holdingValue - investedValue;
+        const stockPnlPercent = investedValue > 0 ? (stockPnl / investedValue) * 100 : 0;
+        const predictions = stock.predictions && stock.predictions.length > 0
+          ? stock.predictions
+          : calculateHorizonPredictions(
+              resolveRealtimeMarketQuote(stock.symbol || stock.name),
+              stock.currentPrice,
+              stock.shares
+            );
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
+            onClick={() => setSelectedStockForOutlook(null)}
+          >
+            <div
+              className="bg-slate-900 border border-cyan-500/40 rounded-2xl w-full max-w-3xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-slate-800">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xl font-bold font-mono text-white">
+                      {stock.symbol}
+                    </span>
+                    <span className="text-sm text-slate-300 font-medium">
+                      {stock.name}
+                    </span>
+                    {stock.nseKey && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                        {stock.nseKey}
+                      </span>
+                    )}
+                    {stock.bseKey && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                        {stock.bseKey}
+                      </span>
+                    )}
+                    <span className={`text-[11px] font-sans px-2 py-0.5 rounded border ${getRebalanceStatusBadgeClass(stock.rebalanceStatus)}`}>
+                      {stock.rebalanceStatus}
+                    </span>
+                  </div>
+                  <div className="text-xs text-cyan-300 font-mono mt-1">
+                    Long-Term Holding Outlook &amp; Compounding Targets (Based on Live CMP ₹{stock.currentPrice.toFixed(2)})
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedStockForOutlook(null)}
+                  className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Real-Time Quantitative Advisor Recommendation */}
+              <div className={`p-3.5 rounded-xl border text-xs sm:text-sm ${
+                stock.suggestion === 'SELL_EXIT_NOW'
+                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+                  : stock.suggestion === 'HOLD_FIRM'
+                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                  : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
+              }`}>
+                <div className="font-semibold mb-1 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span>Quantitative Advisor Verdict:</span>
+                    {getActionBadge(stock.suggestion)}
+                  </div>
+                  <span className="text-[11px] font-mono opacity-80">
+                    Target: ₹{stock.targetPrice} · Stop-Loss: ₹{stock.stopLoss}
+                  </span>
+                </div>
+                <div className="leading-relaxed opacity-95">
+                  {stock.suggestionRationale}
+                </div>
+              </div>
+
+              {/* Holding & Valuation Quick Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                <div>
+                  <div className="text-slate-400 text-[11px]">Current Market Price (Live)</div>
+                  <div className="text-base font-bold font-mono text-white mt-0.5">
+                    ₹{stock.currentPrice.toFixed(2)}
+                  </div>
+                  <div className={`text-[10px] font-mono ${stock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stock.dayChangePercent >= 0 ? '+' : ''}{stock.dayChangePercent}% today
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-slate-400 text-[11px]">Holding Quantity</div>
+                  <div className="text-base font-bold font-mono text-white mt-0.5">
+                    {stock.shares} Shares
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Avg Buy: ₹{stock.avgBuyPrice.toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-slate-400 text-[11px]">Total Position Value</div>
+                  <div className="text-base font-bold font-mono text-white mt-0.5">
+                    ₹{holdingValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Invested: ₹{investedValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-slate-400 text-[11px]">Unrealized P&amp;L</div>
+                  <div className={`text-base font-bold font-mono mt-0.5 ${stockPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stockPnl >= 0 ? '+' : ''}₹{stockPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[10px] font-mono ${stockPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stockPnlPercent >= 0 ? '+' : ''}{stockPnlPercent.toFixed(2)}% Return
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Multi-Year Price Predictions & Compounding Target Cards */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <h4 className="font-semibold text-white flex items-center gap-1.5">
+                    <TrendingUp className="w-4 h-4 text-cyan-400" />
+                    <span>Multi-Year Holding Horizons &amp; Compounding Targets</span>
+                  </h4>
+                  <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                    Calculated from Live CMP ₹{stock.currentPrice.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                  {predictions.map((pred) => (
+                    <div
+                      key={pred.horizon}
+                      className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2"
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-200">{pred.label}</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                          {pred.horizon}
+                        </span>
+                      </div>
+
+                      <div>
+                        <div className="text-base font-bold font-mono text-emerald-400">
+                          ₹{pred.targetPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[11px] font-mono text-emerald-300/90 mt-0.5 flex items-center justify-between">
+                          <span>+{pred.upsidePercent}% Upside</span>
+                          <span className="text-slate-400">({pred.cagrPercent}% CAGR)</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-slate-800/80 text-[10px] text-slate-400 flex items-center justify-between">
+                        <span>Holding Value ({stock.shares} sh):</span>
+                        <strong className="text-white font-mono">
+                          ₹{pred.projectedHoldingValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </strong>
+                      </div>
+
+                      <div className="text-[10px] text-slate-400 leading-normal pt-1 border-t border-slate-800/60">
+                        {pred.thesis}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 6-Month Cooling Period & Long-Term Compounding Principle */}
+              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+                <div className="flex items-center gap-2 font-semibold text-white text-[11px]">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Minimum 6-Month Institutional Cooling Period Enforced</span>
+                </div>
+                <p className="text-slate-400 text-[10px] leading-relaxed">
+                  Avoid exiting or swing-trading based on daily market fluctuations. Institutional index inclusion and passive ETF weight accumulation follow a 180-day cycle around March and September rebalancings. Unless structural business deterioration occurs, allow the position to mature through the cooling window.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleStartEdit(stock);
+                    setSelectedStockForOutlook(null);
+                  }}
+                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Edit Quantity / Buy Price</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedStockForOutlook(null)}
+                  className="px-5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded font-sans cursor-pointer transition-colors shadow-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
