@@ -585,155 +585,160 @@ function AppContent() {
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* High Density Metric Overview */}
-        <MetricOverview onSelectStock={handleSelectStockBySymbol} />
+        {/* Index Rebalance Metrics Overview & Global Search: Hidden on 'portfolio' advisor page to keep it clean */}
+        {activeTab !== 'portfolio' && (
+          <>
+            {/* High Density Metric Overview */}
+            <MetricOverview onSelectStock={handleSelectStockBySymbol} />
 
-        {/* Global Menu-Wise Search & Quick Navigation Bar */}
-        <div className="mb-6 space-y-2">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-            <div className="relative w-full lg:w-96">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search across all menus (e.g. TRENT, ZOMATO, RELIANCE, HDFC)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-md pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  title="Clear search"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+            {/* Global Menu-Wise Search & Quick Navigation Bar */}
+            <div className="mb-6 space-y-2">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                <div className="relative w-full lg:w-96">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search across all menus (e.g. TRENT, ZOMATO, RELIANCE, HDFC)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-md pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      title="Clear search"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
 
-            {/* Interactive Menu-Wise Match Badges with Click-to-Switch */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <button
-                onClick={() => setActiveTab('upcoming')}
-                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
-                  activeTab === 'upcoming'
-                    ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40'
-                    : 'text-slate-400 hover:text-emerald-300 bg-slate-900 border border-slate-800'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Inclusions:</span>
-                <strong className="font-mono text-white">{filteredUpcoming.length}</strong>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('exclusions')}
-                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
-                  activeTab === 'exclusions'
-                    ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40'
-                    : 'text-slate-400 hover:text-rose-300 bg-slate-900 border border-slate-800'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                <span>Exclusions:</span>
-                <strong className="font-mono text-white">{filteredExclusions.length}</strong>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('fo_trends')}
-                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
-                  activeTab === 'fo_trends'
-                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40'
-                    : 'text-slate-400 hover:text-amber-300 bg-slate-900 border border-slate-800'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <span>F&amp;O:</span>
-                <strong className="font-mono text-white">{filteredFoStocks.length}</strong>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('portfolio')}
-                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
-                  activeTab === 'portfolio'
-                    ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
-                    : 'text-slate-400 hover:text-cyan-300 bg-slate-900 border border-slate-800'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                <span>Portfolio:</span>
-                <strong className="font-mono text-white">{filteredPortfolio.length}</strong>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('deleted')}
-                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
-                  activeTab === 'deleted'
-                    ? 'bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/40'
-                    : 'text-slate-400 hover:text-indigo-300 bg-slate-900 border border-slate-800'
-                }`}
-              >
-                <span>Archive:</span>
-                <strong className="font-mono text-white">{filteredDeletedArchive.length}</strong>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('alerts')}
-                className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
-                  activeTab === 'alerts'
-                    ? 'bg-violet-500/20 text-violet-300 font-bold border border-violet-500/40'
-                    : 'text-slate-400 hover:text-violet-300 bg-slate-900 border border-slate-800'
-                }`}
-              >
-                <span>Alerts:</span>
-                <strong className="font-mono text-white">{filteredAlerts.length}</strong>
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Cross-Tab Navigation Suggestion Banner if 0 matches on active tab */}
-          {q && currentTabMatchesCount === 0 && (
-            <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-lg text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-fadeIn">
-              <div>
-                <span>No results for "<strong>{searchQuery}</strong>" in the currently selected <strong>{activeTab.toUpperCase()}</strong> menu.</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {filteredUpcoming.length > 0 && (
+                {/* Interactive Menu-Wise Match Badges with Click-to-Switch */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
                   <button
                     onClick={() => setActiveTab('upcoming')}
-                    className="underline text-emerald-300 hover:text-white font-medium cursor-pointer"
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                      activeTab === 'upcoming'
+                        ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40'
+                        : 'text-slate-400 hover:text-emerald-300 bg-slate-900 border border-slate-800'
+                    }`}
                   >
-                    View Inclusions ({filteredUpcoming.length}) &rarr;
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span>Inclusions:</span>
+                    <strong className="font-mono text-white">{filteredUpcoming.length}</strong>
                   </button>
-                )}
-                {filteredExclusions.length > 0 && (
+
                   <button
                     onClick={() => setActiveTab('exclusions')}
-                    className="underline text-rose-300 hover:text-white font-medium cursor-pointer"
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                      activeTab === 'exclusions'
+                        ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40'
+                        : 'text-slate-400 hover:text-rose-300 bg-slate-900 border border-slate-800'
+                    }`}
                   >
-                    View Exclusions ({filteredExclusions.length}) &rarr;
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    <span>Exclusions:</span>
+                    <strong className="font-mono text-white">{filteredExclusions.length}</strong>
                   </button>
-                )}
-                {filteredFoStocks.length > 0 && (
+
                   <button
                     onClick={() => setActiveTab('fo_trends')}
-                    className="underline text-amber-300 hover:text-white font-medium cursor-pointer"
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                      activeTab === 'fo_trends'
+                        ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40'
+                        : 'text-slate-400 hover:text-amber-300 bg-slate-900 border border-slate-800'
+                    }`}
                   >
-                    View F&amp;O Signals ({filteredFoStocks.length}) &rarr;
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span>F&amp;O:</span>
+                    <strong className="font-mono text-white">{filteredFoStocks.length}</strong>
                   </button>
-                )}
-                {filteredPortfolio.length > 0 && (
+
                   <button
                     onClick={() => setActiveTab('portfolio')}
-                    className="underline text-cyan-300 hover:text-white font-medium cursor-pointer"
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                      (activeTab as string) === 'portfolio'
+                        ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
+                        : 'text-slate-400 hover:text-cyan-300 bg-slate-900 border border-slate-800'
+                    }`}
                   >
-                    View Portfolio Advisor ({filteredPortfolio.length}) &rarr;
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                    <span>Portfolio:</span>
+                    <strong className="font-mono text-white">{filteredPortfolio.length}</strong>
                   </button>
-                )}
+
+                  <button
+                    onClick={() => setActiveTab('deleted')}
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                      activeTab === 'deleted'
+                        ? 'bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/40'
+                        : 'text-slate-400 hover:text-indigo-300 bg-slate-900 border border-slate-800'
+                    }`}
+                  >
+                    <span>Archive:</span>
+                    <strong className="font-mono text-white">{filteredDeletedArchive.length}</strong>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('alerts')}
+                    className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                      activeTab === 'alerts'
+                        ? 'bg-violet-500/20 text-violet-300 font-bold border border-violet-500/40'
+                        : 'text-slate-400 hover:text-violet-300 bg-slate-900 border border-slate-800'
+                    }`}
+                  >
+                    <span>Alerts:</span>
+                    <strong className="font-mono text-white">{filteredAlerts.length}</strong>
+                  </button>
+                </div>
               </div>
+
+              {/* Quick Cross-Tab Navigation Suggestion Banner if 0 matches on active tab */}
+              {q && currentTabMatchesCount === 0 && (
+                <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-lg text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-fadeIn">
+                  <div>
+                    <span>No results for "<strong>{searchQuery}</strong>" in the currently selected <strong>{activeTab.toUpperCase()}</strong> menu.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {filteredUpcoming.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('upcoming')}
+                        className="underline text-emerald-300 hover:text-white font-medium cursor-pointer"
+                      >
+                        View Inclusions ({filteredUpcoming.length}) &rarr;
+                      </button>
+                    )}
+                    {filteredExclusions.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('exclusions')}
+                        className="underline text-rose-300 hover:text-white font-medium cursor-pointer"
+                      >
+                        View Exclusions ({filteredExclusions.length}) &rarr;
+                      </button>
+                    )}
+                    {filteredFoStocks.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('fo_trends')}
+                        className="underline text-amber-300 hover:text-white font-medium cursor-pointer"
+                      >
+                        View F&amp;O Signals ({filteredFoStocks.length}) &rarr;
+                      </button>
+                    )}
+                    {filteredPortfolio.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('portfolio')}
+                        className="underline text-cyan-300 hover:text-white font-medium cursor-pointer"
+                      >
+                        View Portfolio Advisor ({filteredPortfolio.length}) &rarr;
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
         {/* Primary Tab Panels with All Menu-Wise Filters Connected */}
         {activeTab === 'upcoming' && (
