@@ -24,7 +24,8 @@ import {
   Upload,
   Search,
   Check,
-  CheckCheck
+  CheckCheck,
+  Clock
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
@@ -37,6 +38,103 @@ interface MyPortfolioViewProps {
   onRefreshQuotes?: () => void;
   onBatchUpdateStocks?: (updatedStocks: UserPortfolioStock[]) => void;
 }
+
+export interface LongTermPrediction {
+  horizon: string;
+  years: number;
+  label: string;
+  targetPrice: number;
+  upsidePercent: number;
+  projectedHoldingValue: number;
+  cagrPercent: number;
+  thesis: string;
+}
+
+// Multi-Year Long-Term Compounding Horizons Generator (1, 2, 3, 5, 10 Years)
+const getLongTermPredictions = (stock: UserPortfolioStock): LongTermPrediction[] => {
+  const p = stock.currentPrice > 0 ? stock.currentPrice : 100;
+  const shares = stock.shares || 1;
+  const profile = resolveRealtimeMarketQuote(stock.symbol || stock.name);
+  const sector = (profile.sector || '').toLowerCase();
+  const symbol = (stock.symbol || '').toUpperCase();
+
+  // Sector and category calibrated CAGR rates for Indian equities
+  let cagr = 0.18;
+  if (sector.includes('railway') || sector.includes('defence') || symbol.includes('IRFC') || symbol.includes('BEL')) {
+    cagr = 0.21;
+  } else if (sector.includes('banking') || sector.includes('financial')) {
+    cagr = 0.165;
+  } else if (sector.includes('retail') || sector.includes('consumer')) {
+    cagr = 0.20;
+  } else if (sector.includes('it') || sector.includes('tech')) {
+    cagr = 0.16;
+  }
+
+  const cagr1Y = cagr;
+  const cagr2Y = cagr * 0.98;
+  const cagr3Y = cagr * 0.95;
+  const cagr5Y = cagr * 0.96;
+  const cagr10Y = cagr * 0.94;
+
+  const t1 = Number((p * (1 + cagr1Y)).toFixed(2));
+  const t2 = Number((p * Math.pow(1 + cagr2Y, 2)).toFixed(2));
+  const t3 = Number((p * Math.pow(1 + cagr3Y, 3)).toFixed(2));
+  const t5 = Number((p * Math.pow(1 + cagr5Y, 5)).toFixed(2));
+  const t10 = Number((p * Math.pow(1 + cagr10Y, 10)).toFixed(2));
+
+  return [
+    {
+      horizon: '1Y',
+      years: 1,
+      label: '1-Year Horizon',
+      targetPrice: t1,
+      upsidePercent: Number((((t1 - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((t1 * shares).toFixed(2)),
+      cagrPercent: Number((cagr1Y * 100).toFixed(1)),
+      thesis: 'Annual operational earnings growth & semi-annual institutional index weight adjustments.'
+    },
+    {
+      horizon: '2Y',
+      years: 2,
+      label: '2-Year Horizon',
+      targetPrice: t2,
+      upsidePercent: Number((((t2 - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((t2 * shares).toFixed(2)),
+      cagrPercent: Number((cagr2Y * 100).toFixed(1)),
+      thesis: 'Operational capacity expansion, order-book execution & working capital normalization.'
+    },
+    {
+      horizon: '3Y',
+      years: 3,
+      label: '3-Year Horizon',
+      targetPrice: t3,
+      upsidePercent: Number((((t3 - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((t3 * shares).toFixed(2)),
+      cagrPercent: Number((cagr3Y * 100).toFixed(1)),
+      thesis: 'Operating leverage conversion & cumulative dividend cash flows compounding.'
+    },
+    {
+      horizon: '5Y',
+      years: 5,
+      label: '5-Year Horizon',
+      targetPrice: t5,
+      upsidePercent: Number((((t5 - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((t5 * shares).toFixed(2)),
+      cagrPercent: Number((cagr5Y * 100).toFixed(1)),
+      thesis: 'Full multi-year capital expenditure compounding & sustained sector leadership.'
+    },
+    {
+      horizon: '10Y',
+      years: 10,
+      label: '10-Year Horizon',
+      targetPrice: t10,
+      upsidePercent: Number((((t10 - p) / p) * 100).toFixed(1)),
+      projectedHoldingValue: Number((t10 * shares).toFixed(2)),
+      cagrPercent: Number((cagr10Y * 100).toFixed(1)),
+      thesis: 'Decade compounding wealth engine with reinvested returns & sovereign market moat.'
+    }
+  ];
+};
 
 // Internal quantitative analysis generator for individual holdings
 const getQuantitativeStockAnalysis = (stock: UserPortfolioStock) => {
@@ -111,6 +209,10 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Overlay modal states
+  const [isPortfolioSummaryModalOpen, setIsPortfolioSummaryModalOpen] = useState<boolean>(false);
+  const [selectedStockForVerdict, setSelectedStockForVerdict] = useState<UserPortfolioStock | null>(null);
 
   // Auto-sync real-time quotes on mount for all holdings
   useEffect(() => {
@@ -437,11 +539,21 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         className="hidden"
       />
 
-      {/* Header Banner - Clean "Portfolio Advisor" */}
+      {/* Header Banner - "Portfolio Advisor" as a Link to open Summary Overlay */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1">
-            Portfolio Advisor
+            <button
+              type="button"
+              onClick={() => setIsPortfolioSummaryModalOpen(true)}
+              className="hover:text-cyan-300 transition-colors cursor-pointer text-left focus:outline-none flex items-center gap-2.5 group"
+              title="Click to view Portfolio Overview & Capital Summary overlay"
+            >
+              <span className="underline decoration-cyan-500/40 hover:decoration-cyan-400 underline-offset-4">Portfolio Advisor</span>
+              <span className="text-[11px] font-mono font-medium text-cyan-400 bg-cyan-950/80 border border-cyan-500/40 px-2.5 py-0.5 rounded-full group-hover:bg-cyan-900 group-hover:border-cyan-400 transition-colors flex items-center gap-1">
+                Overview ↗
+              </span>
+            </button>
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
             Real-time algorithmic advisor for your holdings. Live market prices and daily institutional rebalance ratings determine optimal HOLD or SELL execution.
@@ -497,36 +609,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-lg text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn shadow-lg">
           <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <span className="font-sans font-medium">{validationSuccessMessage}</span>
-        </div>
-      )}
-
-      {/* Portfolio Financial Overview Summary Cards */}
-      {portfolioStocks.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-          <div>
-            <div className="text-[11px] text-slate-400">Total Portfolio Value</div>
-            <div className="text-base sm:text-lg font-bold font-mono text-emerald-400 mt-0.5 tabular-nums">
-              ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-400">Invested Capital</div>
-            <div className="text-base sm:text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
-              ₹{totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-400">Net Unrealized P&amp;L</div>
-            <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-400">Overall Return</div>
-            <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
-            </div>
-          </div>
         </div>
       )}
 
@@ -676,42 +758,33 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   </div>
                 </div>
 
-                {/* Quantitative Advisor Verdict: Internal Quantitative Analysis & Action Recommendation */}
-                {(() => {
-                  const analysis = getQuantitativeStockAnalysis(stock);
-                  return (
-                    <div className={`p-3.5 rounded-lg border text-xs ${
-                      stock.suggestion === 'SELL_EXIT_NOW'
-                        ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
-                        : stock.suggestion === 'HOLD_FIRM'
-                        ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-                        : stock.suggestion === 'ACCUMULATE'
-                        ? 'bg-teal-950/40 border-teal-500/50 text-teal-200'
-                        : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
-                    }`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-white/10 font-medium">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white">Quantitative Advisor Verdict:</span>
-                          {getActionBadge(stock.suggestion)}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono">
-                          <span>Target: <strong className="text-emerald-300">₹{analysis.target.toFixed(2)}</strong> ({analysis.upsidePercent >= 0 ? '+' : ''}{analysis.upsidePercent.toFixed(1)}%)</span>
-                          <span>Stop-Loss: <strong className="text-rose-300">₹{analysis.stopLoss.toFixed(2)}</strong> (-{analysis.downsidePercent.toFixed(1)}%)</span>
-                          <span>R:R: <strong className="text-cyan-300">{analysis.riskReward}:1</strong></span>
-                        </div>
-                      </div>
-
-                      <div className="mt-2.5 space-y-1.5 text-xs leading-relaxed">
-                        <p className="text-slate-300">
-                          {analysis.verdictText}
-                        </p>
-                        <p className="font-semibold text-white">
-                          {analysis.actionAdvice}
-                        </p>
-                      </div>
+                {/* Quantitative Advisor Verdict: Link Button in share section (1, 2, 3, 5, 10-Year Horizons) */}
+                <div className="pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStockForVerdict(stock)}
+                    className="w-full flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-lg border border-cyan-500/40 bg-slate-950/80 hover:bg-slate-900 hover:border-cyan-400 transition-all cursor-pointer group text-left shadow-sm"
+                    title="Click to view Long-Term Investment Analysis (1, 2, 3, 5, 10 Years)"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-white group-hover:text-cyan-300 transition-colors flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5 text-cyan-400" />
+                        Quantitative Advisor Verdict:
+                      </span>
+                      {getActionBadge(stock.suggestion)}
                     </div>
-                  );
-                })()}
+
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                      <span className="text-slate-400 text-[11px] hidden sm:inline">
+                        1Y Target: <strong className="text-emerald-300">₹{(stock.targetPrice || stock.currentPrice * 1.18).toFixed(2)}</strong>
+                      </span>
+                      <span className="text-cyan-400 underline font-sans text-xs flex items-center gap-1 group-hover:text-cyan-300">
+                        <span>Long-Term Horizon Analysis (1, 2, 3, 5, 10Y)</span>
+                        <span>&rarr;</span>
+                      </span>
+                    </div>
+                  </button>
+                </div>
 
                 {/* DUAL-FIELD EDITING PANEL (Shares Quantity & Avg Purchase Price) */}
                 {isEditing && (
@@ -1092,6 +1165,326 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Portfolio Financial Overview Overlay Modal (Red Box Data) */}
+      {isPortfolioSummaryModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
+          onClick={() => setIsPortfolioSummaryModalOpen(false)}
+        >
+          <div
+            className="bg-slate-900 border border-cyan-500/40 rounded-2xl w-full max-w-3xl shadow-2xl p-5 sm:p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <Briefcase className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h2 className="text-lg font-bold text-white tracking-tight">
+                    Portfolio Advisor Overview
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Total Capital &amp; Net Unrealized Return (Live Real-Time Market Valuation)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPortfolioSummaryModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer text-sm"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Red Box Data from user screenshot */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">Total Portfolio Value</div>
+                <div className="text-lg sm:text-xl font-bold font-mono text-emerald-400 mt-1 tabular-nums">
+                  ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">Invested Capital</div>
+                <div className="text-lg sm:text-xl font-bold font-mono text-white mt-1 tabular-nums">
+                  ₹{totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">Net Unrealized P&amp;L</div>
+                <div className={`text-lg sm:text-xl font-bold font-mono mt-1 tabular-nums ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium">Overall Return</div>
+                <div className={`text-lg sm:text-xl font-bold font-mono mt-1 tabular-nums ${totalPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+
+            {/* Holdings Distribution */}
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+                <div className="text-slate-400 text-[11px]">Total Holdings</div>
+                <div className="text-base font-bold font-mono text-white mt-0.5">{portfolioStocks.length} Stocks</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+                <div className="text-emerald-400 text-[11px]">Hold Firm / Safe</div>
+                <div className="text-base font-bold font-mono text-emerald-400 mt-0.5">
+                  {portfolioStocks.filter((s) => s.suggestion === 'HOLD_FIRM' || s.suggestion === 'ACCUMULATE').length}
+                </div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+                <div className="text-rose-400 text-[11px]">Sell / Outflow Risk</div>
+                <div className="text-base font-bold font-mono text-rose-400 mt-0.5">
+                  {portfolioStocks.filter((s) => s.suggestion === 'SELL_EXIT_NOW').length}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsPortfolioSummaryModalOpen(false)}
+                className="px-5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded font-sans cursor-pointer transition-colors shadow-sm"
+              >
+                Close Overview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Individual Stock Quantitative Advisor Verdict Modal - Long-Term Investment (1, 2, 3, 5, 10 Years) */}
+      {selectedStockForVerdict && (() => {
+        const stock = portfolioStocks.find((s) => s.id === selectedStockForVerdict.id) || selectedStockForVerdict;
+        const analysis = getQuantitativeStockAnalysis(stock);
+        const horizons = getLongTermPredictions(stock);
+        const holdingValue = stock.shares * stock.currentPrice;
+        const investedValue = stock.shares * stock.avgBuyPrice;
+        const stockPnl = holdingValue - investedValue;
+        const stockPnlPercent = investedValue > 0 ? (stockPnl / investedValue) * 100 : 0;
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
+            onClick={() => setSelectedStockForVerdict(null)}
+          >
+            <div
+              className="bg-slate-900 border border-cyan-500/40 rounded-2xl w-full max-w-4xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-slate-800">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xl font-bold font-mono text-white">{stock.symbol}</span>
+                    <span className="text-sm text-slate-300 font-medium">{stock.name}</span>
+                    {stock.nseKey && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                        {stock.nseKey}
+                      </span>
+                    )}
+                    {stock.bseKey && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
+                        {stock.bseKey}
+                      </span>
+                    )}
+                    <span className={`text-[11px] font-sans px-2 py-0.5 rounded border ${getRebalanceStatusBadgeClass(stock.rebalanceStatus)}`}>
+                      {stock.rebalanceStatus}
+                    </span>
+                  </div>
+                  <p className="text-xs text-cyan-300 font-mono mt-1">
+                    Quantitative Advisor Verdict · Long-Term Investment (1, 2, 3, 5, 10 Years)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedStockForVerdict(null)}
+                  className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer text-sm"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Holding & Live Valuation Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                <div>
+                  <div className="text-slate-400 text-[11px]">Current Market Price (Live)</div>
+                  <div className="text-base font-bold font-mono text-white mt-0.5">
+                    ₹{stock.currentPrice.toFixed(2)}
+                  </div>
+                  <div className={`text-[10px] font-mono ${stock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stock.dayChangePercent >= 0 ? '+' : ''}{stock.dayChangePercent}% today
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-slate-400 text-[11px]">Holding Quantity</div>
+                  <div className="text-base font-bold font-mono text-white mt-0.5">
+                    {stock.shares} Shares
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Avg Buy: ₹{stock.avgBuyPrice.toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-slate-400 text-[11px]">Total Position Value</div>
+                  <div className="text-base font-bold font-mono text-white mt-0.5">
+                    ₹{holdingValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Invested: ₹{investedValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-slate-400 text-[11px]">Unrealized P&amp;L</div>
+                  <div className={`text-base font-bold font-mono mt-0.5 ${stockPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stockPnl >= 0 ? '+' : ''}₹{stockPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[10px] font-mono ${stockPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {stockPnlPercent >= 0 ? '+' : ''}{stockPnlPercent.toFixed(2)}% Return
+                  </div>
+                </div>
+              </div>
+
+              {/* Long-Term Quantitative Investment Recommendation */}
+              <div className={`p-4 rounded-xl border text-xs sm:text-sm ${
+                stock.suggestion === 'SELL_EXIT_NOW'
+                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+                  : stock.suggestion === 'HOLD_FIRM'
+                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                  : stock.suggestion === 'ACCUMULATE'
+                  ? 'bg-teal-950/40 border-teal-500/50 text-teal-200'
+                  : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-white/10 font-medium">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">Quantitative Advisor Verdict:</span>
+                    {getActionBadge(stock.suggestion)}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                    <span>1Y Target: <strong className="text-emerald-300">₹{analysis.target.toFixed(2)}</strong></span>
+                    <span>Stop-Loss: <strong className="text-rose-300">₹{analysis.stopLoss.toFixed(2)}</strong></span>
+                    <span>R:R: <strong className="text-cyan-300">{analysis.riskReward}:1</strong></span>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2 text-xs sm:text-sm leading-relaxed">
+                  <p className="text-slate-200">
+                    {stock.suggestion === 'SELL_EXIT_NOW'
+                      ? `Long-Term Capital Protection Analysis: At CMP ₹${stock.currentPrice.toFixed(2)}, quantitative rating is degraded with negative institutional rebalance risk (${stock.rebalanceStatus}). Capital preservation model indicates persistent structural outflows. Sell/exit recommendation applies across both short and long horizons to preserve capital.`
+                      : stock.suggestion === 'ACCUMULATE'
+                      ? `Long-Term Compounding Analysis: Position is consolidating at a ${Math.abs(stockPnlPercent).toFixed(1)}% discount from purchase price ₹${stock.avgBuyPrice.toFixed(2)}. For long-term investors targeting 1, 2, 3, 5, and 10-year horizons, interim consolidations represent optimal rupee-cost averaging windows with a favorable ${analysis.riskReward}:1 risk-to-reward ratio.`
+                      : stock.suggestion === 'BOOK_PARTIAL_PROFIT'
+                      ? `Long-Term Gain Harvesting Analysis: Holding has delivered strong +${stockPnlPercent.toFixed(1)}% gains. Strategy for multi-year compounders: harvest partial profit (20-30%) at current market price, and retain 70-80% of shares for 3Y, 5Y, and 10Y multi-bagger wealth compounding.`
+                      : `Long-Term Investment Conviction: Core constituent status (${stock.rebalanceStatus}) remains strong. Position is well-supported at current market price ₹${stock.currentPrice.toFixed(2)}. Maintain firm holding conviction across 1, 2, 3, 5, and 10-year investment horizons.`}
+                  </p>
+                  <p className="font-semibold text-white">
+                    {stock.suggestion === 'SELL_EXIT_NOW'
+                      ? `ACTION: Exit / sell position at current price ₹${stock.currentPrice.toFixed(2)}. Reallocate capital into core compounding leaders with positive institutional inflows.`
+                      : stock.suggestion === 'ACCUMULATE'
+                      ? `ACTION: Accumulate / buy additional shares at current price ₹${stock.currentPrice.toFixed(2)}. Position for 1Y target (₹${horizons[0].targetPrice}) through 10Y target (₹${horizons[4].targetPrice}).`
+                      : stock.suggestion === 'BOOK_PARTIAL_PROFIT'
+                      ? `ACTION: Book tactical profit on 20-30% of shares; hold remainder firmly for multi-year targets.`
+                      : `ACTION: Hold firm at current price ₹${stock.currentPrice.toFixed(2)}. Compounding is on track toward multi-year targets.`}
+                  </p>
+                </div>
+              </div>
+
+              {/* 5 Multi-Year Compounding Horizons (1, 2, 3, 5, 10 Years) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <h4 className="font-semibold text-white flex items-center gap-1.5">
+                    <TrendingUp className="w-4 h-4 text-cyan-400" />
+                    <span>Multi-Year Investment Compounding Targets (1, 2, 3, 5, 10 Years)</span>
+                  </h4>
+                  <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                    Based on Live CMP ₹{stock.currentPrice.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
+                  {horizons.map((h) => (
+                    <div
+                      key={h.horizon}
+                      className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2 hover:border-cyan-500/40 transition-colors"
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-200">{h.label}</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                          {h.horizon}
+                        </span>
+                      </div>
+
+                      <div>
+                        <div className="text-base font-bold font-mono text-emerald-400">
+                          ₹{h.targetPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[11px] font-mono text-emerald-300/90 mt-0.5 flex items-center justify-between">
+                          <span>+{h.upsidePercent}% Upside</span>
+                          <span className="text-slate-400">({h.cagrPercent}% CAGR)</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-slate-800/80 text-[10px] text-slate-400 flex items-center justify-between">
+                        <span>Value ({stock.shares} sh):</span>
+                        <strong className="text-white font-mono">
+                          ₹{h.projectedHoldingValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </strong>
+                      </div>
+
+                      <div className="text-[10px] text-slate-400 leading-normal pt-1 border-t border-slate-800/60">
+                        {h.thesis}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Long-Term Holding Philosophy Note */}
+              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+                <div className="flex items-center gap-2 font-semibold text-white text-[11px]">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Long-Term Compounding Principle: Multi-Year Horizon (1 to 10 Years)</span>
+                </div>
+                <p className="text-slate-400 text-[10px] leading-relaxed">
+                  Daily 1-2 day fluctuations represent short-term sentiment noise. Institutional index inclusions, capacity expansion, and operating leverage compound value across 1, 2, 3, 5, and 10-year timelines. Positions should be evaluated against multi-year target prices rather than daily ticks.
+                </p>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleStartEdit(stock);
+                    setSelectedStockForVerdict(null);
+                  }}
+                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Edit Quantity / Buy Price</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedStockForVerdict(null)}
+                  className="px-5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded font-sans cursor-pointer transition-colors shadow-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
