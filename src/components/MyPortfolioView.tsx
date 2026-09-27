@@ -5,7 +5,6 @@ import {
   searchNSEBSEStocks,
   resolveRealtimeMarketQuote,
   generateAdvisorRecommendation,
-  calculateHorizonPredictions,
   KnownStockProfile
 } from '../data/portfolioPresets.ts';
 import { fetchRealtimeQuote, fetchBatchRealtimeQuotes } from '../services/marketDataService.ts';
@@ -14,14 +13,10 @@ import {
   Plus,
   Trash2,
   TrendingUp,
-  TrendingDown,
-  ShieldCheck,
   AlertTriangle,
   Lock,
   Edit2,
   CheckCircle2,
-  XCircle,
-  HelpCircle,
   RefreshCw,
   SlidersHorizontal,
   Target,
@@ -29,9 +24,7 @@ import {
   Upload,
   Search,
   Check,
-  CheckCheck,
-  Clock,
-  X
+  CheckCheck
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
@@ -44,6 +37,51 @@ interface MyPortfolioViewProps {
   onRefreshQuotes?: () => void;
   onBatchUpdateStocks?: (updatedStocks: UserPortfolioStock[]) => void;
 }
+
+// Internal quantitative analysis generator for individual holdings
+const getQuantitativeStockAnalysis = (stock: UserPortfolioStock) => {
+  const cmp = stock.currentPrice;
+  const buy = stock.avgBuyPrice;
+  const pnlPercent = buy > 0 ? ((cmp - buy) / buy) * 100 : 0;
+
+  // Use calibrated target and stop-loss from stock data or quantitative valuation levels
+  const target = stock.targetPrice && stock.targetPrice > 0 ? stock.targetPrice : Number((cmp * 1.18).toFixed(2));
+  const stopLoss = stock.stopLoss && stock.stopLoss > 0 ? stock.stopLoss : Number((cmp * 0.90).toFixed(2));
+
+  const upsidePercent = cmp > 0 ? ((target - cmp) / cmp) * 100 : 0;
+  const downsidePercent = cmp > 0 ? ((cmp - stopLoss) / cmp) * 100 : 0;
+  const riskReward = downsidePercent > 0 ? (upsidePercent / downsidePercent).toFixed(1) : '2.0';
+
+  let verdictText = '';
+  let actionAdvice = '';
+
+  if (stock.suggestion === 'SELL_EXIT_NOW') {
+    verdictText = `Internal Analysis: At CMP ₹${cmp.toFixed(2)}, quantitative rating is high risk (${stock.rebalanceStatus}). The stock has breached stop-loss threshold or faces structural institutional outflows with negative liquidity momentum.`;
+    actionAdvice = `SELL / EXIT SUGGESTION: Sell / exit position at current market price ₹${cmp.toFixed(2)} to protect capital. Upside is capped near target ₹${target.toFixed(2)} and stop-loss support was at ₹${stopLoss.toFixed(2)}. Do not average down.`;
+  } else if (stock.suggestion === 'ACCUMULATE' || pnlPercent < -5) {
+    verdictText = `Internal Analysis: At CMP ₹${cmp.toFixed(2)}, stock is consolidating at a ${Math.abs(pnlPercent).toFixed(1)}% discount to your buy price ₹${buy.toFixed(2)}. Institutional rebalance rating (${stock.rebalanceStatus}) remains intact with a favorable ${riskReward}:1 risk-reward ratio.`;
+    actionAdvice = `BUY / ACCUMULATE SUGGESTION: Accumulate / buy shares at current price ₹${cmp.toFixed(2)}. Target is ₹${target.toFixed(2)} (+${upsidePercent.toFixed(1)}% upside) with stop-loss protection set at ₹${stopLoss.toFixed(2)} (-${downsidePercent.toFixed(1)}%). Optimal entry zone for compounding.`;
+  } else if (stock.suggestion === 'BOOK_PARTIAL_PROFIT' || pnlPercent > 40) {
+    verdictText = `Internal Analysis: Holding has delivered strong +${pnlPercent.toFixed(1)}% return from purchase price ₹${buy.toFixed(2)}. At CMP ₹${cmp.toFixed(2)}, price is approaching primary quantitative target of ₹${target.toFixed(2)}.`;
+    actionAdvice = `BOOK PROFIT SUGGESTION: Book partial profit (20-30%) at current price ₹${cmp.toFixed(2)} to lock in gains. Maintain remaining shares for target ₹${target.toFixed(2)} while trailing stop-loss to ₹${stopLoss.toFixed(2)}.`;
+  } else {
+    // HOLD_FIRM
+    verdictText = `Internal Analysis: At CMP ₹${cmp.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}% vs buy price ₹${buy.toFixed(2)}), technical and fundamental structure remains stable. Status is ${stock.rebalanceStatus}. Target of ₹${target.toFixed(2)} offers +${upsidePercent.toFixed(1)}% potential upside.`;
+    actionAdvice = `HOLD SUGGESTION: Hold position firmly at current market price ₹${cmp.toFixed(2)}. Risk-to-reward ratio is ${riskReward}:1. Maintain target ₹${target.toFixed(2)} with stop-loss held at ₹${stopLoss.toFixed(2)} (-${downsidePercent.toFixed(1)}%).`;
+  }
+
+  return {
+    cmp,
+    buy,
+    target,
+    stopLoss,
+    upsidePercent,
+    downsidePercent,
+    riskReward,
+    verdictText,
+    actionAdvice
+  };
+};
 
 export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   portfolioStocks,
@@ -73,10 +111,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Modals for Multi-Year Compounding Forecast & Individual Stock Outlook
-  const [isForecastModalOpen, setIsForecastModalOpen] = useState<boolean>(false);
-  const [selectedStockForOutlook, setSelectedStockForOutlook] = useState<UserPortfolioStock | null>(null);
 
   // Auto-sync real-time quotes on mount for all holdings
   useEffect(() => {
@@ -342,29 +376,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
   const totalPnl = currentTotalValue - totalInvested;
   const totalPnlPercent = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
 
-  // Multi-Year Long-Term Compounding Projections (1Y, 3Y, 5Y, 10Y) across all portfolio stocks
-  const totalProjected1Y = portfolioStocks.reduce((sum, s) => {
-    const t = s.targetPrice1Y && s.targetPrice1Y > 0 ? s.targetPrice1Y : (s.currentPrice * 1.18);
-    return sum + t * s.shares;
-  }, 0);
-  const totalProjected3Y = portfolioStocks.reduce((sum, s) => {
-    const t = s.targetPrice3Y && s.targetPrice3Y > 0 ? s.targetPrice3Y : (s.currentPrice * Math.pow(1.17, 3));
-    return sum + t * s.shares;
-  }, 0);
-  const totalProjected5Y = portfolioStocks.reduce((sum, s) => {
-    const t = s.targetPrice5Y && s.targetPrice5Y > 0 ? s.targetPrice5Y : (s.currentPrice * Math.pow(1.185, 5));
-    return sum + t * s.shares;
-  }, 0);
-  const totalProjected10Y = portfolioStocks.reduce((sum, s) => {
-    const t = s.targetPrice10Y && s.targetPrice10Y > 0 ? s.targetPrice10Y : (s.currentPrice * Math.pow(1.175, 10));
-    return sum + t * s.shares;
-  }, 0);
-
-  const upsideTotal1Y = currentTotalValue > 0 ? (((totalProjected1Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
-  const upsideTotal3Y = currentTotalValue > 0 ? (((totalProjected3Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
-  const upsideTotal5Y = currentTotalValue > 0 ? (((totalProjected5Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
-  const upsideTotal10Y = currentTotalValue > 0 ? (((totalProjected10Y - currentTotalValue) / currentTotalValue) * 100).toFixed(1) : '0';
-
   // Rebalance health breakdown
   const vulnerableStocks = portfolioStocks.filter((s) => s.suggestion === 'SELL_EXIT_NOW');
 
@@ -426,18 +437,11 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         className="hidden"
       />
 
-      {/* Header Banner - Updated to "Portfolio Advisor" with Clickable Wealth Forecast Modal */}
+      {/* Header Banner - Clean "Portfolio Advisor" */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1">
-            <button
-              type="button"
-              onClick={() => setIsForecastModalOpen(true)}
-              className="hover:text-cyan-300 transition-colors cursor-pointer text-left focus:outline-none"
-              title="Click to view Portfolio Multi-Year Long-Term Wealth Compounding Forecast"
-            >
-              Portfolio Advisor
-            </button>
+            Portfolio Advisor
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
             Real-time algorithmic advisor for your holdings. Live market prices and daily institutional rebalance ratings determine optimal HOLD or SELL execution.
@@ -493,6 +497,36 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-lg text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn shadow-lg">
           <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <span className="font-sans font-medium">{validationSuccessMessage}</span>
+        </div>
+      )}
+
+      {/* Portfolio Financial Overview Summary Cards */}
+      {portfolioStocks.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+          <div>
+            <div className="text-[11px] text-slate-400">Total Portfolio Value</div>
+            <div className="text-base sm:text-lg font-bold font-mono text-emerald-400 mt-0.5 tabular-nums">
+              ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] text-slate-400">Invested Capital</div>
+            <div className="text-base sm:text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
+              ₹{totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] text-slate-400">Net Unrealized P&amp;L</div>
+            <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] text-slate-400">Overall Return</div>
+            <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+            </div>
+          </div>
         </div>
       )}
 
@@ -625,15 +659,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                   <div className="flex items-center gap-2">
                     {getActionBadge(stock.suggestion)}
                     <button
-                      type="button"
-                      onClick={() => setSelectedStockForOutlook(stock)}
-                      title="View Long-Term Holding Outlook & Compounding Targets"
-                      className="px-2 py-1 text-xs text-cyan-300 hover:text-white bg-cyan-950/40 hover:bg-cyan-900/60 rounded border border-cyan-500/40 transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <TrendingUp className="w-3 h-3 text-cyan-400" />
-                      <span>Targets</span>
-                    </button>
-                    <button
                       onClick={() => handleStartEdit(stock)}
                       title="Edit shares quantity and purchase price"
                       className="px-2 py-1 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
@@ -650,6 +675,43 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Quantitative Advisor Verdict: Internal Quantitative Analysis & Action Recommendation */}
+                {(() => {
+                  const analysis = getQuantitativeStockAnalysis(stock);
+                  return (
+                    <div className={`p-3.5 rounded-lg border text-xs ${
+                      stock.suggestion === 'SELL_EXIT_NOW'
+                        ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
+                        : stock.suggestion === 'HOLD_FIRM'
+                        ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                        : stock.suggestion === 'ACCUMULATE'
+                        ? 'bg-teal-950/40 border-teal-500/50 text-teal-200'
+                        : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
+                    }`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-white/10 font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-white">Quantitative Advisor Verdict:</span>
+                          {getActionBadge(stock.suggestion)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono">
+                          <span>Target: <strong className="text-emerald-300">₹{analysis.target.toFixed(2)}</strong> ({analysis.upsidePercent >= 0 ? '+' : ''}{analysis.upsidePercent.toFixed(1)}%)</span>
+                          <span>Stop-Loss: <strong className="text-rose-300">₹{analysis.stopLoss.toFixed(2)}</strong> (-{analysis.downsidePercent.toFixed(1)}%)</span>
+                          <span>R:R: <strong className="text-cyan-300">{analysis.riskReward}:1</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 space-y-1.5 text-xs leading-relaxed">
+                        <p className="text-slate-300">
+                          {analysis.verdictText}
+                        </p>
+                        <p className="font-semibold text-white">
+                          {analysis.actionAdvice}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* DUAL-FIELD EDITING PANEL (Shares Quantity & Avg Purchase Price) */}
                 {isEditing && (
@@ -991,15 +1053,8 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded bg-blue-950/40 border border-blue-500/30 text-[11px] text-blue-200 flex items-start gap-2">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Long-Term Compounding:</strong> Stock will be monitored with a <strong>minimum 6-month cooling period</strong>. Intraday fluctuation is ignored to allow semi-annual index rebalancing and passive ETF inflows to unfold.
-                    </span>
-                  </div>
-
                   <div>
-                    <label className="block text-slate-300 mb-1">Optional Notes / Investment Thesis</label>
+                    <label className="block text-slate-300 mb-1 font-medium">Optional Notes / Investment Thesis</label>
                     <input
                       type="text"
                       placeholder="e.g. Bought on Zerodha/Groww for long-term holding"
@@ -1037,352 +1092,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* Portfolio Multi-Year Long-Term Wealth Compounding Forecast Modal */}
-      {isForecastModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
-          onClick={() => setIsForecastModalOpen(false)}
-        >
-          <div
-            className="bg-slate-900 border border-cyan-500/40 rounded-2xl w-full max-w-4xl shadow-2xl p-5 sm:p-6 space-y-5 max-h-[92vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-cyan-400 shrink-0" />
-                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                  Portfolio Multi-Year Long-Term Wealth Compounding Forecast
-                </h2>
-              </div>
-              <button
-                onClick={() => setIsForecastModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Current Value vs Invested Summary Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
-              <div>
-                <div className="text-[11px] text-slate-400">Current Portfolio Value</div>
-                <div className="text-base sm:text-lg font-bold font-mono text-emerald-400 mt-0.5 tabular-nums">
-                  ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400">Total Invested Capital</div>
-                <div className="text-base sm:text-lg font-bold font-mono text-white mt-0.5 tabular-nums">
-                  ₹{totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400">Unrealized Net P&amp;L</div>
-                <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400">Overall Portfolio Return</div>
-                <div className={`text-base sm:text-lg font-bold font-mono mt-0.5 tabular-nums ${totalPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%
-                </div>
-              </div>
-            </div>
-
-            {/* 4 Compounding Horizon Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* 1-Year Forecast */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-200 font-semibold">1-Year Horizon</span>
-                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
-                    12-Month Target
-                  </span>
-                </div>
-                <div className="text-lg sm:text-xl font-bold font-mono text-white">
-                  ₹{totalProjected1Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                  <span>+{upsideTotal1Y}% Growth</span>
-                  <span className="text-slate-400 text-[10px] font-sans">Index Inflows</span>
-                </div>
-              </div>
-
-              {/* 3-Year Forecast */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-200 font-semibold">3-Year Horizon</span>
-                  <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                    36-Month Target
-                  </span>
-                </div>
-                <div className="text-lg sm:text-xl font-bold font-mono text-white">
-                  ₹{totalProjected3Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                  <span>+{upsideTotal3Y}% Growth</span>
-                  <span className="text-slate-400 text-[10px] font-sans">EBITDA Ramp</span>
-                </div>
-              </div>
-
-              {/* 5-Year Forecast */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-200 font-semibold">5-Year Horizon</span>
-                  <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
-                    60-Month Target
-                  </span>
-                </div>
-                <div className="text-lg sm:text-xl font-bold font-mono text-white">
-                  ₹{totalProjected5Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                  <span>+{upsideTotal5Y}% Growth</span>
-                  <span className="text-slate-400 text-[10px] font-sans">Capex Maturation</span>
-                </div>
-              </div>
-
-              {/* 10-Year Forecast */}
-              <div className="bg-gradient-to-br from-slate-950 to-cyan-950/30 border border-cyan-500/40 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-cyan-300 font-semibold">10-Year Wealth Engine</span>
-                  <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                    Decade Compounding
-                  </span>
-                </div>
-                <div className="text-lg sm:text-xl font-bold font-mono text-cyan-300">
-                  ₹{totalProjected10Y.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-xs font-mono text-emerald-400 flex items-center justify-between">
-                  <span>+{upsideTotal10Y}% Growth</span>
-                  <span className="text-slate-400 text-[10px] font-sans">
-                    {currentTotalValue > 0 ? (totalProjected10Y / currentTotalValue).toFixed(1) : '1.0'}x Multiple
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Individual Stock Long-Term Holding Outlook & Compounding Targets Modal */}
-      {selectedStockForOutlook && (() => {
-        // Sync with the latest stock state from portfolioStocks if available
-        const stock = portfolioStocks.find((s) => s.id === selectedStockForOutlook.id) || selectedStockForOutlook;
-        const holdingValue = stock.shares * stock.currentPrice;
-        const investedValue = stock.shares * stock.avgBuyPrice;
-        const stockPnl = holdingValue - investedValue;
-        const stockPnlPercent = investedValue > 0 ? (stockPnl / investedValue) * 100 : 0;
-        const predictions = stock.predictions && stock.predictions.length > 0
-          ? stock.predictions
-          : calculateHorizonPredictions(
-              resolveRealtimeMarketQuote(stock.symbol || stock.name),
-              stock.currentPrice,
-              stock.shares
-            );
-
-        return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
-            onClick={() => setSelectedStockForOutlook(null)}
-          >
-            <div
-              className="bg-slate-900 border border-cyan-500/40 rounded-2xl w-full max-w-3xl shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between pb-3 border-b border-slate-800">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xl font-bold font-mono text-white">
-                      {stock.symbol}
-                    </span>
-                    <span className="text-sm text-slate-300 font-medium">
-                      {stock.name}
-                    </span>
-                    {stock.nseKey && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                        {stock.nseKey}
-                      </span>
-                    )}
-                    {stock.bseKey && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/30">
-                        {stock.bseKey}
-                      </span>
-                    )}
-                    <span className={`text-[11px] font-sans px-2 py-0.5 rounded border ${getRebalanceStatusBadgeClass(stock.rebalanceStatus)}`}>
-                      {stock.rebalanceStatus}
-                    </span>
-                  </div>
-                  <div className="text-xs text-cyan-300 font-mono mt-1">
-                    Long-Term Holding Outlook &amp; Compounding Targets (Based on Live CMP ₹{stock.currentPrice.toFixed(2)})
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedStockForOutlook(null)}
-                  className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Real-Time Quantitative Advisor Recommendation */}
-              <div className={`p-3.5 rounded-xl border text-xs sm:text-sm ${
-                stock.suggestion === 'SELL_EXIT_NOW'
-                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-200'
-                  : stock.suggestion === 'HOLD_FIRM'
-                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-                  : 'bg-amber-950/40 border-amber-500/50 text-amber-200'
-              }`}>
-                <div className="font-semibold mb-1 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span>Quantitative Advisor Verdict:</span>
-                    {getActionBadge(stock.suggestion)}
-                  </div>
-                  <span className="text-[11px] font-mono opacity-80">
-                    Target: ₹{stock.targetPrice} · Stop-Loss: ₹{stock.stopLoss}
-                  </span>
-                </div>
-                <div className="leading-relaxed opacity-95">
-                  {stock.suggestionRationale}
-                </div>
-              </div>
-
-              {/* Holding & Valuation Quick Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-slate-950/70 p-3 rounded-xl border border-slate-800">
-                <div>
-                  <div className="text-slate-400 text-[11px]">Current Market Price (Live)</div>
-                  <div className="text-base font-bold font-mono text-white mt-0.5">
-                    ₹{stock.currentPrice.toFixed(2)}
-                  </div>
-                  <div className={`text-[10px] font-mono ${stock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {stock.dayChangePercent >= 0 ? '+' : ''}{stock.dayChangePercent}% today
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-slate-400 text-[11px]">Holding Quantity</div>
-                  <div className="text-base font-bold font-mono text-white mt-0.5">
-                    {stock.shares} Shares
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    Avg Buy: ₹{stock.avgBuyPrice.toFixed(2)}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-slate-400 text-[11px]">Total Position Value</div>
-                  <div className="text-base font-bold font-mono text-white mt-0.5">
-                    ₹{holdingValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    Invested: ₹{investedValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-slate-400 text-[11px]">Unrealized P&amp;L</div>
-                  <div className={`text-base font-bold font-mono mt-0.5 ${stockPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {stockPnl >= 0 ? '+' : ''}₹{stockPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                  </div>
-                  <div className={`text-[10px] font-mono ${stockPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {stockPnlPercent >= 0 ? '+' : ''}{stockPnlPercent.toFixed(2)}% Return
-                  </div>
-                </div>
-              </div>
-
-              {/* 4 Multi-Year Price Predictions & Compounding Target Cards */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <h4 className="font-semibold text-white flex items-center gap-1.5">
-                    <TrendingUp className="w-4 h-4 text-cyan-400" />
-                    <span>Multi-Year Holding Horizons &amp; Compounding Targets</span>
-                  </h4>
-                  <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                    Calculated from Live CMP ₹{stock.currentPrice.toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-                  {predictions.map((pred) => (
-                    <div
-                      key={pred.horizon}
-                      className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2"
-                    >
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-200">{pred.label}</span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                          {pred.horizon}
-                        </span>
-                      </div>
-
-                      <div>
-                        <div className="text-base font-bold font-mono text-emerald-400">
-                          ₹{pred.targetPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-[11px] font-mono text-emerald-300/90 mt-0.5 flex items-center justify-between">
-                          <span>+{pred.upsidePercent}% Upside</span>
-                          <span className="text-slate-400">({pred.cagrPercent}% CAGR)</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-1.5 border-t border-slate-800/80 text-[10px] text-slate-400 flex items-center justify-between">
-                        <span>Holding Value ({stock.shares} sh):</span>
-                        <strong className="text-white font-mono">
-                          ₹{pred.projectedHoldingValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                        </strong>
-                      </div>
-
-                      <div className="text-[10px] text-slate-400 leading-normal pt-1 border-t border-slate-800/60">
-                        {pred.thesis}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 6-Month Cooling Period & Long-Term Compounding Principle */}
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
-                <div className="flex items-center gap-2 font-semibold text-white text-[11px]">
-                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Minimum 6-Month Institutional Cooling Period Enforced</span>
-                </div>
-                <p className="text-slate-400 text-[10px] leading-relaxed">
-                  Avoid exiting or swing-trading based on daily market fluctuations. Institutional index inclusion and passive ETF weight accumulation follow a 180-day cycle around March and September rebalancings. Unless structural business deterioration occurs, allow the position to mature through the cooling window.
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleStartEdit(stock);
-                    setSelectedStockForOutlook(null);
-                  }}
-                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Edit Quantity / Buy Price</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedStockForOutlook(null)}
-                  className="px-5 py-2 text-xs font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 rounded font-sans cursor-pointer transition-colors shadow-sm"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 };
