@@ -31,8 +31,7 @@ import {
   Check,
   CheckCheck,
   Clock,
-  X,
-  ExternalLink
+  X
 } from 'lucide-react';
 
 interface MyPortfolioViewProps {
@@ -368,7 +367,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
 
   // Rebalance health breakdown
   const vulnerableStocks = portfolioStocks.filter((s) => s.suggestion === 'SELL_EXIT_NOW');
-  const holdFirmStocks = portfolioStocks.filter((s) => s.suggestion === 'HOLD_FIRM' || s.suggestion === 'ACCUMULATE');
 
   const filteredPortfolio = portfolioStocks.filter((stock) => {
     if (filterAction === 'sell' && stock.suggestion !== 'SELL_EXIT_NOW') return false;
@@ -498,55 +496,6 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
         </div>
       )}
 
-      {/* Portfolio Overall Financial Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3.5 sm:p-4">
-          <div className="text-xs text-slate-400">Total Portfolio Value</div>
-          <div className="text-lg sm:text-xl font-bold font-mono text-white mt-1 tabular-nums">
-            ₹{currentTotalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            Invested: ₹{totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-          </div>
-        </div>
-
-        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3.5 sm:p-4">
-          <div className="text-xs text-slate-400">Total Unrealized P&amp;L</div>
-          <div className={`text-lg sm:text-xl font-bold font-mono mt-1 tabular-nums ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-          </div>
-          <div className={`text-[11px] font-mono mt-0.5 ${totalPnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}% Overall Return
-          </div>
-        </div>
-
-        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3.5 sm:p-4">
-          <div className="text-xs text-slate-400">Rebalance Safe / Hold Stocks</div>
-          <div className="text-lg sm:text-xl font-bold font-mono text-emerald-300 mt-1 tabular-nums flex items-center justify-between">
-            <span>{holdFirmStocks.length} Stocks</span>
-            <span className="text-xs text-emerald-400 font-sans font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
-              Safe Inflows
-            </span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            Upcoming inclusions or core constituents
-          </div>
-        </div>
-
-        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3.5 sm:p-4">
-          <div className="text-xs text-slate-400">Vulnerable / Sell Warnings</div>
-          <div className="text-lg sm:text-xl font-bold font-mono text-rose-300 mt-1 tabular-nums flex items-center justify-between">
-            <span>{vulnerableStocks.length} Stocks</span>
-            <span className="text-xs text-rose-400 font-sans font-medium bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30">
-              Action Advised
-            </span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            Facing Nifty 50 deletion &amp; passive outflow
-          </div>
-        </div>
-      </div>
-
       {/* Filter and Management Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -652,20 +601,12 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                 {/* Top Row: Symbol, Valid Keys, Action Advice */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStockForOutlook(stock)}
-                      className="group text-left cursor-pointer focus:outline-none flex flex-wrap items-baseline gap-2 hover:opacity-90 transition-all"
-                      title="Click to view Long-Term Holding Outlook & Compounding Targets"
-                    >
-                      <span className="text-lg font-bold font-mono text-white group-hover:text-cyan-300 group-hover:underline transition-colors flex items-center gap-1.5">
-                        {stock.symbol}
-                        <ExternalLink className="w-3.5 h-3.5 text-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium group-hover:text-slate-200 transition-colors">
-                        {stock.name}
-                      </span>
-                    </button>
+                    <span className="text-lg font-bold font-mono text-white">
+                      {stock.symbol}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {stock.name}
+                    </span>
                     {stock.nseKey && (
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                         {stock.nseKey}
@@ -806,18 +747,14 @@ export const MyPortfolioView: React.FC<MyPortfolioViewProps> = ({
                     </div>
                   </div>
 
-                  <div
-                    onClick={() => setSelectedStockForOutlook(stock)}
-                    className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80 hover:border-cyan-500/40 cursor-pointer transition-colors group"
-                    title="Click to view Long-Term Holding Outlook & Compounding Targets"
-                  >
+                  <div className="bg-slate-950/70 p-2.5 rounded border border-slate-800/80">
                     <div className="text-slate-400 text-[11px] flex items-center justify-between">
-                      <span className="group-hover:text-cyan-300 transition-colors">Current Market Price</span>
+                      <span>Current Market Price</span>
                       <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                        Live Quote ↗
+                        Live Quote
                       </span>
                     </div>
-                    <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums group-hover:text-cyan-300 transition-colors">
+                    <div className="text-sm font-bold font-mono text-white mt-1 tabular-nums">
                       ₹{stock.currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                     <div className={`text-[10px] font-mono mt-0.5 ${stock.dayChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
